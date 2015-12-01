@@ -140,7 +140,6 @@ class Group(BaseModel):
     id = peewee.PrimaryKeyField()
     name = peewee.CharField(max_length=100)
     permissions = ArrayField(peewee.CharField, default=DEFAULT_PERMISSIONS)
-    tables = ArrayField(peewee.CharField)
     created_at = DateTimeTZField(default=datetime.datetime.now)
 
     class Meta:
@@ -151,7 +150,6 @@ class Group(BaseModel):
             'id': self.id,
             'name': self.name,
             'permissions': self.permissions,
-            'tables': self.tables,
             'created_at': self.created_at
         }
 
@@ -195,7 +193,6 @@ class User(ModelTimestampsMixin, BaseModel, UserMixin, PermissionsCheckMixin):
 
     def __init__(self, *args, **kwargs):
         super(User, self).__init__(*args, **kwargs)
-        self._allowed_tables = None
 
     def pre_save(self, created):
         super(User, self).pre_save(created)
@@ -213,15 +210,6 @@ class User(ModelTimestampsMixin, BaseModel, UserMixin, PermissionsCheckMixin):
         # TODO: this should be cached.
         return list(itertools.chain(*[g.permissions for g in
                                       Group.select().where(Group.name << self.groups)]))
-
-    @property
-    def allowed_tables(self):
-        # TODO: cache this as weel
-        if self._allowed_tables is None:
-            self._allowed_tables = set([t.lower() for t in itertools.chain(*[g.tables for g in
-                                        Group.select().where(Group.name << self.groups)])])
-
-        return self._allowed_tables
 
     @classmethod
     def get_by_email(cls, email):
@@ -892,8 +880,8 @@ all_models = (DataSource, User, QueryResult, Query, Alert, AlertSubscription, Da
 
 
 def init_db():
-    Group.insert(name='admin', permissions=['admin'], tables=['*']).execute()
-    Group.insert(name='default', permissions=Group.DEFAULT_PERMISSIONS, tables=['*']).execute()
+    Group.insert(name='admin', permissions=['admin']).execute()
+    Group.insert(name='default', permissions=Group.DEFAULT_PERMISSIONS).execute()
 
 
 def create_db(create_tables, drop_tables):

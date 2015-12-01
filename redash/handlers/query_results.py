@@ -2,11 +2,9 @@ import csv
 import json
 import cStringIO
 import time
-import logging
 
 from flask import make_response, request
 from flask.ext.restful import abort
-from flask_login import current_user
 
 from redash import models, settings, utils
 from redash.wsgi import api
@@ -20,24 +18,7 @@ class QueryResultListAPI(BaseResource):
     def post(self):
         params = request.get_json(force=True)
 
-        if settings.FEATURE_TABLES_PERMISSIONS:
-            metadata = utils.SQLMetaData(params['query'])
-
-            if metadata.has_non_select_dml_statements or metadata.has_ddl_statements:
-                return {
-                    'job': {
-                        'error': 'Only SELECT statements are allowed'
-                    }
-                }
-
-            if len(metadata.used_tables - current_user.allowed_tables) > 0 and '*' not in current_user.allowed_tables:
-                logging.warning('Permission denied for user %s to table %s', self.current_user.name, metadata.used_tables)
-                return {
-                    'job': {
-                        'error': 'Access denied for table(s): %s' % (metadata.used_tables)
-                    }
-                }
-
+        # TODO(@arikfr): use events instead?
         models.ActivityLog(
             user=self.current_user,
             type=models.ActivityLog.QUERY_EXECUTION,

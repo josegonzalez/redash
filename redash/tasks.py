@@ -2,12 +2,10 @@ import datetime
 import time
 import logging
 import signal
-import traceback
 from flask.ext.mail import Message
 import redis
 import hipchat
 import requests
-import json
 from redash.utils import json_dumps
 from requests.auth import HTTPBasicAuth
 from celery import Task
