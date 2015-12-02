@@ -229,31 +229,6 @@ class User(ModelTimestampsMixin, BaseModel, UserMixin, PermissionsCheckMixin):
         return self.password_hash and pwd_context.verify(password, self.password_hash)
 
 
-class ActivityLog(BaseModel):
-    QUERY_EXECUTION = 1
-
-    id = peewee.PrimaryKeyField()
-    user = peewee.ForeignKeyField(User)
-    type = peewee.IntegerField()
-    activity = peewee.TextField()
-    created_at = DateTimeTZField(default=datetime.datetime.now)
-
-    class Meta:
-        db_table = 'activity_log'
-
-    def to_dict(self):
-        return {
-            'id': self.id,
-            'user': self.user.to_dict(),
-            'type': self.type,
-            'activity': self.activity,
-            'created_at': self.created_at
-        }
-
-    def __unicode__(self):
-        return unicode(self.id)
-
-
 class DataSource(BaseModel):
     SECRET_PLACEHOLDER = '--------'
 
@@ -876,7 +851,7 @@ class Event(BaseModel):
         return event
 
 
-all_models = (DataSource, User, QueryResult, Query, Alert, AlertSubscription, Dashboard, Visualization, Widget, ActivityLog, Group, Event)
+all_models = (DataSource, User, QueryResult, Query, Alert, AlertSubscription, Dashboard, Visualization, Widget, Group, Event)
 
 
 def init_db():

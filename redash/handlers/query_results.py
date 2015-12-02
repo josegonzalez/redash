@@ -18,12 +18,14 @@ class QueryResultListAPI(BaseResource):
     def post(self):
         params = request.get_json(force=True)
 
-        # TODO(@arikfr): use events instead?
-        models.ActivityLog(
-            user=self.current_user,
-            type=models.ActivityLog.QUERY_EXECUTION,
-            activity=params['query']
-        ).save()
+        record_event.delay({
+            'user_id': self.current_user.id,
+            'action': 'execute_query',
+            'timestamp': int(time.time()),
+            'object_id': params['data_source_id'],
+            'object_type': 'data_source',
+            'query': params['query']
+        })
 
         max_age = int(params.get('max_age', -1))
 
