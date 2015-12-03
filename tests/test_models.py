@@ -386,7 +386,8 @@ class TestEvents(BaseTestCase):
                       "timestamp": timestamp,
                       "object_type": "dashboard",
                       "user_id": user.id,
-                      "object_id": 1}
+                      "object_id": 1,
+                      "org_id": 1}
 
         return raw_event, user, created_at
 

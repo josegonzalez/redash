@@ -97,12 +97,13 @@ class TestHMACAuthentication(BaseTestCase):
             rv = c.get(path, query_string={'signature': signature, 'expires': self.expires, 'user_id': user.id})
             self.assertEqual(user.id, hmac_load_user_from_request(request).id)
 
+
 class TestCreateAndLoginUser(BaseTestCase):
     def test_logins_valid_user(self):
         user = user_factory.create(email='test@example.com')
 
         with patch('redash.google_oauth.login_user') as login_user_mock:
-            create_and_login_user(user.name, user.email)
+            create_and_login_user(1, user.name, user.email)
             login_user_mock.assert_called_once_with(user, remember=True)
 
     def test_creates_vaild_new_user(self):
@@ -111,7 +112,7 @@ class TestCreateAndLoginUser(BaseTestCase):
 
         with patch('redash.google_oauth.login_user') as login_user_mock:
 
-            create_and_login_user(name, email)
+            create_and_login_user(1, name, email)
 
             self.assertTrue(login_user_mock.called)
             user = models.User.get(models.User.email == email)

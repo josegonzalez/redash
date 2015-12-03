@@ -13,6 +13,10 @@ class BaseResource(Resource):
     def current_user(self):
         return current_user._get_current_object()
 
+    @property
+    def current_org(self):
+        return self.current_user.org
+
 
 def require_fields(req, fields):
     for f in fields:

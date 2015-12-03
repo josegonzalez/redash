@@ -43,14 +43,16 @@ def get_user_profile(access_token):
 
 
 def verify_profile(profile):
-    if not settings.GOOGLE_APPS_DOMAIN:
-        return True
-
     domain = profile['email'].split('@')[-1]
-    return domain in settings.GOOGLE_APPS_DOMAIN
+    try:
+        org = models.Organization.get_by_domain(domain)
+    except models.Organization.DoesNotExist:
+        return False
+
+    return True
 
 
-def create_and_login_user(name, email):
+def create_and_login_user(org, name, email):
     try:
         user_object = models.User.get_by_email(email)
         if user_object.name != name:
@@ -59,7 +61,7 @@ def create_and_login_user(name, email):
             user_object.save()
     except models.User.DoesNotExist:
         logger.debug("Creating user object (%r)", name)
-        user_object = models.User.create(name=name, email=email, groups=models.User.DEFAULT_GROUPS)
+        user_object = models.User.create(org=org, name=name, email=email, groups=models.User.DEFAULT_GROUPS)
 
     login_user(user_object, remember=True)
 

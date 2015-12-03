@@ -58,6 +58,14 @@ class Database(object):
 db = Database()
 
 
+class JSONField(peewee.TextField):
+    def db_value(self, value):
+        return json.dumps(value)
+
+    def python_value(self, value):
+        return json.loads(value)
+
+
 class BaseModel(MeteredModel):
     class Meta:
         database = db.database
@@ -65,6 +73,11 @@ class BaseModel(MeteredModel):
     @classmethod
     def get_by_id(cls, model_id):
         return cls.get(cls.id == model_id)
+
+    @classmethod
+    def get_by_id_and_org(cls, org, model_id):
+        # TODO(@arikfr): put this method in a BelongToOrgMixin?
+        return cls.get(cls.id==model_id, cls.org==org)
 
     def pre_save(self, created):
         pass
@@ -133,11 +146,27 @@ class ApiUser(UserMixin, PermissionsCheckMixin):
         return ['view_query']
 
 
+class Organization(ModelTimestampsMixin, BaseModel):
+    id = peewee.PrimaryKeyField()
+    name = peewee.CharField()
+    domain = peewee.CharField(null=True, unique=True)
+    settings = JSONField()
+    # owner? or just through groups?
+
+    class Meta:
+        db_table = 'organizations'
+
+    @classmethod
+    def get_by_domain(cls, domain):
+        return cls.get(cls.domain == domain)
+
+
 class Group(BaseModel):
     DEFAULT_PERMISSIONS = ['create_dashboard', 'create_query', 'edit_dashboard', 'edit_query',
                            'view_query', 'view_source', 'execute_query', 'list_users', 'schedule_query']
 
     id = peewee.PrimaryKeyField()
+    org = peewee.ForeignKeyField(Organization, related_name="groups")
     name = peewee.CharField(max_length=100)
     permissions = ArrayField(peewee.CharField, default=DEFAULT_PERMISSIONS)
     created_at = DateTimeTZField(default=datetime.datetime.now)
@@ -161,6 +190,7 @@ class User(ModelTimestampsMixin, BaseModel, UserMixin, PermissionsCheckMixin):
     DEFAULT_GROUPS = ['default']
 
     id = peewee.PrimaryKeyField()
+    org = peewee.ForeignKeyField(Organization, related_name="users")
     name = peewee.CharField(max_length=320)
     email = peewee.CharField(max_length=320, index=True, unique=True)
     password_hash = peewee.CharField(max_length=128, null=True)
@@ -233,6 +263,7 @@ class DataSource(BaseModel):
     SECRET_PLACEHOLDER = '--------'
 
     id = peewee.PrimaryKeyField()
+    org = peewee.ForeignKeyField(Organization, related_name="data_sources")
     name = peewee.CharField(unique=True)
     type = peewee.CharField()
     options = peewee.TextField()
@@ -300,16 +331,8 @@ class DataSource(BaseModel):
         return get_query_runner(self.type, self.options)
 
     @classmethod
-    def all(cls):
-        return cls.select().order_by(cls.id.asc())
-
-
-class JSONField(peewee.TextField):
-    def db_value(self, value):
-        return json.dumps(value)
-
-    def python_value(self, value):
-        return json.loads(value)
+    def all(cls, org):
+        return cls.select().where(cls.org==org).order_by(cls.id.asc())
 
 
 class QueryResult(BaseModel):
@@ -822,6 +845,7 @@ class Widget(ModelTimestampsMixin, BaseModel):
 
 
 class Event(BaseModel):
+    org = peewee.ForeignKeyField(Organization, related_name="events")
     user = peewee.ForeignKeyField(User, related_name="events", null=True)
     action = peewee.CharField()
     object_type = peewee.CharField()
@@ -837,6 +861,7 @@ class Event(BaseModel):
 
     @classmethod
     def record(cls, event):
+        org = event.pop('org_id')
         user = event.pop('user_id')
         action = event.pop('action')
         object_type = event.pop('object_type')
@@ -845,18 +870,19 @@ class Event(BaseModel):
         created_at = datetime.datetime.utcfromtimestamp(event.pop('timestamp'))
         additional_properties = json.dumps(event)
 
-        event = cls.create(user=user, action=action, object_type=object_type, object_id=object_id,
+        event = cls.create(org=org, user=user, action=action, object_type=object_type, object_id=object_id,
                            additional_properties=additional_properties, created_at=created_at)
 
         return event
 
 
-all_models = (DataSource, User, QueryResult, Query, Alert, AlertSubscription, Dashboard, Visualization, Widget, Group, Event)
+all_models = (Organization, DataSource, User, QueryResult, Query, Alert, AlertSubscription, Dashboard, Visualization, Widget, Group, Event)
 
 
 def init_db():
-    Group.insert(name='admin', permissions=['admin']).execute()
-    Group.insert(name='default', permissions=Group.DEFAULT_PERMISSIONS).execute()
+    default_org = Organization.create(name="Default", settings={})
+    Group.create(name='admin', permissions=['admin'], org=default_org)
+    Group.create(name='default', permissions=Group.DEFAULT_PERMISSIONS, org=default_org)
 
 
 def create_db(create_tables, drop_tables):

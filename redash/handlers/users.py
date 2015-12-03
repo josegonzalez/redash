@@ -23,7 +23,7 @@ class UserListResource(BaseResource):
         req = request.get_json(force=True)
         require_fields(req, ('name', 'email', 'password'))
 
-        user = models.User(name=req['name'], email=req['email'])
+        user = models.User(org=self.current_org, name=req['name'], email=req['email'])
         user.hash_password(req['password'])
         try:
             user.save()

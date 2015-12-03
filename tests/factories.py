@@ -40,13 +40,15 @@ class Sequence(object):
 
 user_factory = ModelFactory(redash.models.User,
                             name='John Doe', email=Sequence('test{}@example.com'),
-                            groups=['default'])
+                            groups=['default'],
+                            org=1)
 
 
 data_source_factory = ModelFactory(redash.models.DataSource,
                                    name=Sequence('Test {}'),
                                    type='pg',
-                                   options='{"dbname": "test"}')
+                                   options='{"dbname": "test"}',
+                                   org=1)
 
 
 dashboard_factory = ModelFactory(redash.models.Dashboard,
