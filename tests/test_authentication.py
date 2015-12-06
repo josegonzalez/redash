@@ -5,7 +5,6 @@ from tests import BaseTestCase
 from redash import models
 from redash.google_oauth import create_and_login_user
 from redash.authentication import api_key_load_user_from_request, hmac_load_user_from_request, sign
-from tests.factories import user_factory, query_factory
 from redash.wsgi import app
 
 
@@ -16,7 +15,7 @@ class TestApiKeyAuthentication(BaseTestCase):
     def setUp(self):
         super(TestApiKeyAuthentication, self).setUp()
         self.api_key = 10
-        self.query = query_factory.create(api_key=self.api_key)
+        self.query = self.factory.create_query(api_key=self.api_key)
 
     def test_no_api_key(self):
         with app.test_client() as c:
@@ -39,7 +38,7 @@ class TestApiKeyAuthentication(BaseTestCase):
             self.assertIsNone(api_key_load_user_from_request(request))
 
     def test_user_api_key(self):
-        user = user_factory.create(api_key="user_key")
+        user = self.factory.create_user(api_key="user_key")
         with app.test_client() as c:
             rv = c.get('/api/queries/', query_string={'api_key': user.api_key})
             self.assertEqual(user.id, api_key_load_user_from_request(request).id)
@@ -62,7 +61,7 @@ class TestHMACAuthentication(BaseTestCase):
     def setUp(self):
         super(TestHMACAuthentication, self).setUp()
         self.api_key = 10
-        self.query = query_factory.create(api_key=self.api_key)
+        self.query = self.factory.create_query(api_key=self.api_key)
         self.path = '/api/queries/{0}'.format(self.query.id)
         self.expires = time.time() + 1800
 
@@ -90,7 +89,7 @@ class TestHMACAuthentication(BaseTestCase):
             self.assertIsNone(hmac_load_user_from_request(request))
 
     def test_user_api_key(self):
-        user = user_factory.create(api_key="user_key")
+        user = self.factory.create_user(api_key="user_key")
         path = '/api/queries/'
         with app.test_client() as c:
             signature = sign(user.api_key, path, self.expires)
@@ -100,7 +99,7 @@ class TestHMACAuthentication(BaseTestCase):
 
 class TestCreateAndLoginUser(BaseTestCase):
     def test_logins_valid_user(self):
-        user = user_factory.create(email='test@example.com')
+        user = self.factory.create_user(email='test@example.com')
 
         with patch('redash.google_oauth.login_user') as login_user_mock:
             create_and_login_user(1, user.name, user.email)
@@ -112,7 +111,7 @@ class TestCreateAndLoginUser(BaseTestCase):
 
         with patch('redash.google_oauth.login_user') as login_user_mock:
 
-            create_and_login_user(1, name, email)
+            create_and_login_user(models.Organization.get_by_id(1), name, email)
 
             self.assertTrue(login_user_mock.called)
             user = models.User.get(models.User.email == email)

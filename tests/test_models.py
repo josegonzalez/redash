@@ -6,26 +6,25 @@ import mock
 from dateutil.parser import parse as date_parse
 from tests import BaseTestCase
 from redash import models
-from factories import dashboard_factory, query_factory, data_source_factory, query_result_factory, user_factory, widget_factory
 from redash.utils import gen_query_hash, utcnow
 
 
 class DashboardTest(BaseTestCase):
     def test_appends_suffix_to_slug_when_duplicate(self):
-        d1 = dashboard_factory.create()
+        d1 = self.factory.create_dashboard()
         self.assertEquals(d1.slug, 'test')
 
-        d2 = dashboard_factory.create(user=d1.user)
+        d2 = self.factory.create_dashboard(user=d1.user)
         self.assertNotEquals(d1.slug, d2.slug)
 
-        d3 = dashboard_factory.create(user=d1.user)
+        d3 = self.factory.create_dashboard(user=d1.user)
         self.assertNotEquals(d1.slug, d3.slug)
         self.assertNotEquals(d2.slug, d3.slug)
 
 
 class QueryTest(BaseTestCase):
     def test_changing_query_text_changes_hash(self):
-        q = query_factory.create()
+        q = self.factory.create_query()
 
         old_hash = q.query_hash
         models.Query.update_instance(q.id, query="SELECT 2;")
@@ -35,9 +34,9 @@ class QueryTest(BaseTestCase):
         self.assertNotEquals(old_hash, q.query_hash)
 
     def test_search_finds_in_name(self):
-        q1 = query_factory.create(name=u"Testing seåřċħ")
-        q2 = query_factory.create(name=u"Testing seåřċħing")
-        q3 = query_factory.create(name=u"Testing seå řċħ")
+        q1 = self.factory.create_query(name=u"Testing seåřċħ")
+        q2 = self.factory.create_query(name=u"Testing seåřċħing")
+        q3 = self.factory.create_query(name=u"Testing seå řċħ")
 
         queries = models.Query.search(u"seåřċħ")
 
@@ -46,9 +45,9 @@ class QueryTest(BaseTestCase):
         self.assertNotIn(q3, queries)
 
     def test_search_finds_in_description(self):
-        q1 = query_factory.create(description=u"Testing seåřċħ")
-        q2 = query_factory.create(description=u"Testing seåřċħing")
-        q3 = query_factory.create(description=u"Testing seå řċħ")
+        q1 = self.factory.create_query(description=u"Testing seåřċħ")
+        q2 = self.factory.create_query(description=u"Testing seåřċħing")
+        q3 = self.factory.create_query(description=u"Testing seå řċħ")
 
         queries = models.Query.search(u"seåřċħ")
 
@@ -57,10 +56,9 @@ class QueryTest(BaseTestCase):
         self.assertNotIn(q3, queries)
 
     def test_search_by_id_returns_query(self):
-        q1 = query_factory.create(description="Testing search")
-        q2 = query_factory.create(description="Testing searching")
-        q3 = query_factory.create(description="Testing sea rch")
-
+        q1 = self.factory.create_query(description="Testing search")
+        q2 = self.factory.create_query(description="Testing searching")
+        q3 = self.factory.create_query(description="Testing sea rch")
 
         queries = models.Query.search(str(q3.id))
 
@@ -69,13 +67,13 @@ class QueryTest(BaseTestCase):
         self.assertNotIn(q2, queries)
 
     def test_save_creates_default_visualization(self):
-        q = query_factory.create()
+        q = self.factory.create_query()
         self.assertEquals(q.visualizations.count(), 1)
 
     def test_save_updates_updated_at_field(self):
         # This should be a test of ModelTimestampsMixin, but it's easier to test in context of existing model... :-\
         one_day_ago = datetime.datetime.today() - datetime.timedelta(days=1)
-        q = query_factory.create(created_at=one_day_ago, updated_at=one_day_ago)
+        q = self.factory.create_query(created_at=one_day_ago, updated_at=one_day_ago)
 
         q.save()
 
@@ -115,15 +113,15 @@ class ShouldScheduleNextTest(TestCase):
 class QueryOutdatedQueriesTest(BaseTestCase):
     # TODO: this test can be refactored to use mock version of should_schedule_next to simplify it.
     def test_outdated_queries_skips_unscheduled_queries(self):
-        query = query_factory.create(schedule=None)
+        query = self.factory.create_query(schedule=None)
         queries = models.Query.outdated_queries()
 
         self.assertNotIn(query, queries)
 
     def test_outdated_queries_works_with_ttl_based_schedule(self):
         two_hours_ago = datetime.datetime.now() - datetime.timedelta(hours=2)
-        query = query_factory.create(schedule="3600")
-        query_result = query_result_factory.create(query=query, retrieved_at=two_hours_ago)
+        query = self.factory.create_query(schedule="3600")
+        query_result = self.factory.create_query_result(query=query, retrieved_at=two_hours_ago)
         query.latest_query_data = query_result
         query.save()
 
@@ -132,8 +130,8 @@ class QueryOutdatedQueriesTest(BaseTestCase):
 
     def test_skips_fresh_queries(self):
         half_an_hour_ago = datetime.datetime.now() - datetime.timedelta(minutes=30)
-        query = query_factory.create(schedule="3600")
-        query_result = query_result_factory.create(query=query, retrieved_at=half_an_hour_ago)
+        query = self.factory.create_query(schedule="3600")
+        query_result = self.factory.create_query_result(query=query, retrieved_at=half_an_hour_ago)
         query.latest_query_data = query_result
         query.save()
 
@@ -142,8 +140,8 @@ class QueryOutdatedQueriesTest(BaseTestCase):
 
     def test_outdated_queries_works_with_specific_time_schedule(self):
         half_an_hour_ago = utcnow() - datetime.timedelta(minutes=30)
-        query = query_factory.create(schedule=half_an_hour_ago.strftime('%H:%M'))
-        query_result = query_result_factory.create(query=query, retrieved_at=half_an_hour_ago-datetime.timedelta(days=1))
+        query = self.factory.create_query(schedule=half_an_hour_ago.strftime('%H:%M'))
+        query_result = self.factory.create_query_result(query=query, retrieved_at=half_an_hour_ago-datetime.timedelta(days=1))
         query.latest_query_data = query_result
         query.save()
 
@@ -156,14 +154,14 @@ class QueryArchiveTest(BaseTestCase):
         super(QueryArchiveTest, self).setUp()
 
     def test_archive_query_sets_flag(self):
-        query = query_factory.create()
+        query = self.factory.create_query()
         query.archive()
         query = models.Query.get_by_id(query.id)
 
         self.assertEquals(query.is_archived, True)
 
     def test_archived_query_doesnt_return_in_all(self):
-        query = query_factory.create(schedule="1")
+        query = self.factory.create_query(schedule="1")
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
         query_result, _ = models.QueryResult.store_result(query.data_source.id, query.query_hash, query.query, "1",
                                                        123, yesterday)
@@ -171,16 +169,16 @@ class QueryArchiveTest(BaseTestCase):
         query.latest_query_data = query_result
         query.save()
 
-        self.assertIn(query, models.Query.all_queries())
+        self.assertIn(query, models.Query.all_queries(query.groups.keys()))
         self.assertIn(query, models.Query.outdated_queries())
 
         query.archive()
 
-        self.assertNotIn(query, models.Query.all_queries())
+        self.assertNotIn(query, models.Query.all_queries(query.groups.keys()))
         self.assertNotIn(query, models.Query.outdated_queries())
 
     def test_removes_associated_widgets_from_dashboards(self):
-        widget = widget_factory.create()
+        widget = self.factory.create_widget()
         query = widget.visualization.query
 
         query.archive()
@@ -188,7 +186,7 @@ class QueryArchiveTest(BaseTestCase):
         self.assertRaises(models.Widget.DoesNotExist, models.Widget.get_by_id, widget.id)
 
     def test_removes_scheduling(self):
-        query = query_factory.create(schedule="1")
+        query = self.factory.create_query(schedule="1")
 
         query.archive()
 
@@ -204,8 +202,7 @@ class DataSourceTest(BaseTestCase):
         with mock.patch('redash.query_runner.pg.PostgreSQL.get_schema') as patched_get_schema:
             patched_get_schema.return_value = return_value
 
-            ds = data_source_factory.create()
-            schema = ds.get_schema()
+            schema = self.factory.data_source.get_schema()
 
             self.assertEqual(return_value, schema)
 
@@ -214,9 +211,8 @@ class DataSourceTest(BaseTestCase):
         with mock.patch('redash.query_runner.pg.PostgreSQL.get_schema') as patched_get_schema:
             patched_get_schema.return_value = return_value
 
-            ds = data_source_factory.create()
-            ds.get_schema()
-            schema = ds.get_schema()
+            self.factory.data_source.get_schema()
+            schema = self.factory.data_source.get_schema()
 
             self.assertEqual(return_value, schema)
             self.assertEqual(patched_get_schema.call_count, 1)
@@ -226,11 +222,10 @@ class DataSourceTest(BaseTestCase):
         with mock.patch('redash.query_runner.pg.PostgreSQL.get_schema') as patched_get_schema:
             patched_get_schema.return_value = return_value
 
-            ds = data_source_factory.create()
-            ds.get_schema()
+            self.factory.data_source.get_schema()
             new_return_value = [{'name': 'new_table', 'columns': []}]
             patched_get_schema.return_value = new_return_value
-            schema = ds.get_schema(refresh=True)
+            schema = self.factory.data_source.get_schema(refresh=True)
 
             self.assertEqual(new_return_value, schema)
             self.assertEqual(patched_get_schema.call_count, 2)
@@ -241,32 +236,31 @@ class QueryResultTest(BaseTestCase):
         super(QueryResultTest, self).setUp()
 
     def test_get_latest_returns_none_if_not_found(self):
-        ds = data_source_factory.create()
-        found_query_result = models.QueryResult.get_latest(ds, "SELECT 1", 60)
+        found_query_result = models.QueryResult.get_latest(self.factory.data_source, "SELECT 1", 60)
         self.assertIsNone(found_query_result)
 
     def test_get_latest_returns_when_found(self):
-        qr = query_result_factory.create()
+        qr = self.factory.create_query_result()
         found_query_result = models.QueryResult.get_latest(qr.data_source, qr.query, 60)
 
         self.assertEqual(qr, found_query_result)
 
     def test_get_latest_works_with_data_source_id(self):
-        qr = query_result_factory.create()
+        qr = self.factory.create_query_result()
         found_query_result = models.QueryResult.get_latest(qr.data_source.id, qr.query, 60)
 
         self.assertEqual(qr, found_query_result)
 
     def test_get_latest_doesnt_return_query_from_different_data_source(self):
-        qr = query_result_factory.create()
-        data_source = data_source_factory.create()
+        qr = self.factory.create_query_result()
+        data_source = self.factory.create_data_source()
         found_query_result = models.QueryResult.get_latest(data_source, qr.query, 60)
 
         self.assertIsNone(found_query_result)
 
     def test_get_latest_doesnt_return_if_ttl_expired(self):
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-        qr = query_result_factory.create(retrieved_at=yesterday)
+        qr = self.factory.create_query_result(retrieved_at=yesterday)
 
         found_query_result = models.QueryResult.get_latest(qr.data_source, qr.query, max_age=60)
 
@@ -274,7 +268,7 @@ class QueryResultTest(BaseTestCase):
 
     def test_get_latest_returns_if_ttl_not_expired(self):
         yesterday = datetime.datetime.now() - datetime.timedelta(seconds=30)
-        qr = query_result_factory.create(retrieved_at=yesterday)
+        qr = self.factory.create_query_result(retrieved_at=yesterday)
 
         found_query_result = models.QueryResult.get_latest(qr.data_source, qr.query, max_age=120)
 
@@ -282,8 +276,8 @@ class QueryResultTest(BaseTestCase):
 
     def test_get_latest_returns_the_most_recent_result(self):
         yesterday = datetime.datetime.now() - datetime.timedelta(seconds=30)
-        old_qr = query_result_factory.create(retrieved_at=yesterday)
-        qr = query_result_factory.create()
+        old_qr = self.factory.create_query_result(retrieved_at=yesterday)
+        qr = self.factory.create_query_result()
 
         found_query_result = models.QueryResult.get_latest(qr.data_source, qr.query, 60)
 
@@ -291,10 +285,10 @@ class QueryResultTest(BaseTestCase):
 
     def test_get_latest_returns_the_last_cached_result_for_negative_ttl(self):
         yesterday = datetime.datetime.now() + datetime.timedelta(days=-100)
-        very_old = query_result_factory.create(retrieved_at=yesterday)
+        very_old = self.factory.create_query_result(retrieved_at=yesterday)
 
         yesterday = datetime.datetime.now() + datetime.timedelta(days=-1)
-        qr = query_result_factory.create(retrieved_at=yesterday)
+        qr = self.factory.create_query_result(retrieved_at=yesterday)
         found_query_result = models.QueryResult.get_latest(qr.data_source, qr.query, -1)
 
         self.assertEqual(found_query_result.id, qr.id)
@@ -303,26 +297,46 @@ class QueryResultTest(BaseTestCase):
 class TestUnusedQueryResults(BaseTestCase):
     def test_returns_only_unused_query_results(self):
         two_weeks_ago = datetime.datetime.now() - datetime.timedelta(days=14)
-        qr = query_result_factory.create()
-        query = query_factory.create(latest_query_data=qr)
-        unused_qr = query_result_factory.create(retrieved_at=two_weeks_ago)
+        qr = self.factory.create_query_result()
+        query = self.factory.create_query(latest_query_data=qr)
+        unused_qr = self.factory.create_query_result(retrieved_at=two_weeks_ago)
 
         self.assertIn(unused_qr, models.QueryResult.unused())
         self.assertNotIn(qr, models.QueryResult.unused())
 
     def test_returns_only_over_a_week_old_results(self):
         two_weeks_ago = datetime.datetime.now() - datetime.timedelta(days=14)
-        unused_qr = query_result_factory.create(retrieved_at=two_weeks_ago)
-        new_unused_qr = query_result_factory.create()
+        unused_qr = self.factory.create_query_result(retrieved_at=two_weeks_ago)
+        new_unused_qr = self.factory.create_query_result()
 
         self.assertIn(unused_qr, models.QueryResult.unused())
         self.assertNotIn(new_unused_qr, models.QueryResult.unused())
 
 
+class TestQueryAll(BaseTestCase):
+    def test_returns_only_queries_in_given_groups(self):
+        ds1 = self.factory.create_data_source()
+        ds2 = self.factory.create_data_source()
+
+        group1 = models.Group.create(name="g1", org=ds1.org)
+        group2 = models.Group.create(name="g2", org=ds1.org)
+
+        models.DataSourceGroups.create(group=group1, data_source=ds1, permissions=['create', 'view'])
+        models.DataSourceGroups.create(group=group2, data_source=ds2, permissions=['create', 'view'])
+
+        q1 = self.factory.create_query(data_source=ds1)
+        q2 = self.factory.create_query(data_source=ds2)
+
+        self.assertIn(q1, models.Query.all_queries([group1]))
+        self.assertNotIn(q2, models.Query.all_queries([group1]))
+        self.assertIn(q1, models.Query.all_queries([group1, group2]))
+        self.assertIn(q2, models.Query.all_queries([group1, group2]))
+
+
 class TestQueryResultStoreResult(BaseTestCase):
     def setUp(self):
         super(TestQueryResultStoreResult, self).setUp()
-        self.data_source = data_source_factory.create()
+        self.data_source = self.factory.data_source
         self.query = "SELECT 1"
         self.query_hash = gen_query_hash(self.query)
         self.runtime = 123
@@ -341,9 +355,9 @@ class TestQueryResultStoreResult(BaseTestCase):
         self.assertEqual(query_result.data_source, self.data_source)
 
     def test_updates_existing_queries(self):
-        query1 = query_factory.create(query=self.query, data_source=self.data_source)
-        query2 = query_factory.create(query=self.query, data_source=self.data_source)
-        query3 = query_factory.create(query=self.query, data_source=self.data_source)
+        query1 = self.factory.create_query(query=self.query)
+        query2 = self.factory.create_query(query=self.query)
+        query3 = self.factory.create_query(query=self.query)
 
         query_result, _ = models.QueryResult.store_result(self.data_source.id, self.query_hash, self.query, self.data,
                                                        self.runtime, self.utcnow)
@@ -353,9 +367,9 @@ class TestQueryResultStoreResult(BaseTestCase):
         self.assertEqual(models.Query.get_by_id(query3.id)._data['latest_query_data'], query_result.id)
 
     def test_doesnt_update_queries_with_different_hash(self):
-        query1 = query_factory.create(query=self.query, data_source=self.data_source)
-        query2 = query_factory.create(query=self.query, data_source=self.data_source)
-        query3 = query_factory.create(query=self.query + "123", data_source=self.data_source)
+        query1 = self.factory.create_query(query=self.query)
+        query2 = self.factory.create_query(query=self.query)
+        query3 = self.factory.create_query(query=self.query + "123")
 
         query_result, _ = models.QueryResult.store_result(self.data_source.id, self.query_hash, self.query, self.data,
                                                        self.runtime, self.utcnow)
@@ -365,9 +379,9 @@ class TestQueryResultStoreResult(BaseTestCase):
         self.assertNotEqual(models.Query.get_by_id(query3.id)._data['latest_query_data'], query_result.id)
 
     def test_doesnt_update_queries_with_different_data_source(self):
-        query1 = query_factory.create(query=self.query, data_source=self.data_source)
-        query2 = query_factory.create(query=self.query, data_source=self.data_source)
-        query3 = query_factory.create(query=self.query, data_source=data_source_factory.create())
+        query1 = self.factory.create_query(query=self.query)
+        query2 = self.factory.create_query(query=self.query)
+        query3 = self.factory.create_query(query=self.query, data_source=self.factory.create_data_source())
 
         query_result, _ = models.QueryResult.store_result(self.data_source.id, self.query_hash, self.query, self.data,
                                                        self.runtime, self.utcnow)
@@ -380,7 +394,7 @@ class TestQueryResultStoreResult(BaseTestCase):
 class TestEvents(BaseTestCase):
     def raw_event(self):
         timestamp = 1411778709.791
-        user = user_factory.create()
+        user = self.factory.user
         created_at = datetime.datetime.utcfromtimestamp(timestamp)
         raw_event = {"action": "view",
                       "timestamp": timestamp,
@@ -414,8 +428,8 @@ class TestEvents(BaseTestCase):
 
 class TestWidgetDeleteInstance(BaseTestCase):
     def test_delete_removes_from_layout(self):
-        widget = widget_factory.create()
-        widget2 = widget_factory.create(dashboard=widget.dashboard)
+        widget = self.factory.create_widget()
+        widget2 = self.factory.create_widget(dashboard=widget.dashboard)
         widget.dashboard.layout = json.dumps([[widget.id, widget2.id]])
         widget.dashboard.save()
         widget.delete_instance()
@@ -423,8 +437,8 @@ class TestWidgetDeleteInstance(BaseTestCase):
         self.assertEquals(json.dumps([[widget2.id]]), widget.dashboard.layout)
 
     def test_delete_removes_empty_rows(self):
-        widget = widget_factory.create()
-        widget2 = widget_factory.create(dashboard=widget.dashboard)
+        widget = self.factory.create_widget()
+        widget2 = self.factory.create_widget(dashboard=widget.dashboard)
         widget.dashboard.layout = json.dumps([[widget.id, widget2.id]])
         widget.dashboard.save()
         widget.delete_instance()

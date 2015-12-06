@@ -5,8 +5,6 @@ from flask.ext.login import current_user
 from mock import patch
 from tests import BaseTestCase
 from tests.handlers import authenticated_user, json_request
-from tests.factories import dashboard_factory, widget_factory, visualization_factory, query_factory, \
-    query_result_factory, user_factory, data_source_factory
 from redash import models, settings
 from redash.wsgi import app
 
@@ -14,7 +12,7 @@ from redash.wsgi import app
 settings.GOOGLE_APPS_DOMAIN = "example.com"
 
 
-class AuthenticationTestMixin():
+class AuthenticationTestMixin(object):
     def test_redirects_when_not_authenticated(self):
         with app.test_client() as c:
             for path in self.paths:
@@ -51,7 +49,7 @@ class IndexTest(BaseTestCase, AuthenticationTestMixin):
 
 class StatusTest(BaseTestCase):
     def test_returns_data_for_admin(self):
-        admin = user_factory.create(groups=['admin', 'default'])
+        admin = self.factory.create_admin()
         with app.test_client() as c, authenticated_user(c, user=admin):
             rv = c.get('/status.json')
             self.assertEqual(rv.status_code, 200)
@@ -73,7 +71,7 @@ class DashboardAPITest(BaseTestCase, AuthenticationTestMixin):
         super(DashboardAPITest, self).setUp()
 
     def test_get_dashboard(self):
-        d1 = dashboard_factory.create()
+        d1 = self.factory.create_dashboard()
         with app.test_client() as c, authenticated_user(c):
             rv = c.get('/api/dashboards/{0}'.format(d1.slug))
             self.assertEquals(rv.status_code, 200)
@@ -89,17 +87,16 @@ class DashboardAPITest(BaseTestCase, AuthenticationTestMixin):
             self.assertEquals(rv.status_code, 404)
 
     def test_create_new_dashboard(self):
-        user = user_factory.create()
-        with app.test_client() as c, authenticated_user(c, user=user):
+        with app.test_client() as c, authenticated_user(c, user=self.factory.user):
             dashboard_name = 'Test Dashboard'
             rv = json_request(c.post, '/api/dashboards', data={'name': dashboard_name})
             self.assertEquals(rv.status_code, 200)
             self.assertEquals(rv.json['name'], 'Test Dashboard')
-            self.assertEquals(rv.json['user_id'], user.id)
+            self.assertEquals(rv.json['user_id'], self.factory.user.id)
             self.assertEquals(rv.json['layout'], [])
 
     def test_update_dashboard(self):
-        d = dashboard_factory.create()
+        d = self.factory.create_dashboard()
         new_name = 'New Name'
         with app.test_client() as c, authenticated_user(c):
             rv = json_request(c.post, '/api/dashboards/{0}'.format(d.id),
@@ -108,7 +105,7 @@ class DashboardAPITest(BaseTestCase, AuthenticationTestMixin):
             self.assertEquals(rv.json['name'], new_name)
 
     def test_delete_dashboard(self):
-        d = dashboard_factory.create()
+        d = self.factory.create_dashboard()
         with app.test_client() as c, authenticated_user(c):
             rv = json_request(c.delete, '/api/dashboards/{0}'.format(d.slug))
             self.assertEquals(rv.status_code, 200)
@@ -132,8 +129,8 @@ class WidgetAPITest(BaseTestCase):
         return rv
 
     def test_create_widget(self):
-        dashboard = dashboard_factory.create()
-        vis = visualization_factory.create()
+        dashboard = self.factory.create_dashboard()
+        vis = self.factory.create_visualization()
 
         rv = self.create_widget(dashboard, vis)
         self.assertEquals(rv.status_code, 200)
@@ -161,7 +158,7 @@ class WidgetAPITest(BaseTestCase):
         self.assertEquals(rv4.json['new_row'], True)
 
     def test_create_text_widget(self):
-        dashboard = dashboard_factory.create()
+        dashboard = self.factory.create_dashboard()
 
         data = {
             'visualization_id': None,
@@ -178,7 +175,7 @@ class WidgetAPITest(BaseTestCase):
         self.assertEquals(rv.json['widget']['text'], 'Sample text.')
 
     def test_delete_widget(self):
-        widget = widget_factory.create()
+        widget = self.factory.create_widget()
 
         with app.test_client() as c, authenticated_user(c):
             rv = json_request(c.delete, '/api/widgets/{0}'.format(widget.id))
@@ -197,32 +194,29 @@ class QueryAPITest(BaseTestCase, AuthenticationTestMixin):
         super(QueryAPITest, self).setUp()
 
     def test_update_query(self):
-        query = query_factory.create()
+        admin = self.factory.create_admin()
+        query = self.factory.create_query()
 
-        other_user = user_factory.create()
-
-        with app.test_client() as c, authenticated_user(c, user=other_user):
+        with app.test_client() as c, authenticated_user(c, user=admin):
             rv = json_request(c.post, '/api/queries/{0}'.format(query.id), data={'name': 'Testing'})
             self.assertEqual(rv.status_code, 200)
             self.assertEqual(rv.json['name'], 'Testing')
-            self.assertEqual(rv.json['last_modified_by']['id'], other_user.id)
+            self.assertEqual(rv.json['last_modified_by']['id'], admin.id)
 
     def test_create_query(self):
-        user = user_factory.create()
-        data_source = data_source_factory.create()
         query_data = {
             'name': 'Testing',
             'query': 'SELECT 1',
             'schedule': "3600",
-            'data_source_id': data_source.id
+            'data_source_id': self.factory.data_source.id
         }
 
-        with app.test_client() as c, authenticated_user(c, user=user):
+        with app.test_client() as c, authenticated_user(c, user=self.factory.user):
             rv = json_request(c.post, '/api/queries', data=query_data)
 
             self.assertEquals(rv.status_code, 200)
             self.assertDictContainsSubset(query_data, rv.json)
-            self.assertEquals(rv.json['user']['id'], user.id)
+            self.assertEquals(rv.json['user']['id'], self.factory.user.id)
             self.assertIsNotNone(rv.json['api_key'])
             self.assertIsNotNone(rv.json['query_hash'])
 
@@ -230,7 +224,7 @@ class QueryAPITest(BaseTestCase, AuthenticationTestMixin):
             self.assertEquals(len(list(query.visualizations)), 1)
 
     def test_get_query(self):
-        query = query_factory.create()
+        query = self.factory.create_query()
 
         with app.test_client() as c, authenticated_user(c):
             rv = json_request(c.get, '/api/queries/{0}'.format(query.id))
@@ -239,7 +233,7 @@ class QueryAPITest(BaseTestCase, AuthenticationTestMixin):
             self.assertResponseEqual(rv.json, query.to_dict(with_visualizations=True))
 
     def test_get_all_queries(self):
-        queries = [query_factory.create() for _ in range(10)]
+        queries = [self.factory.create_query() for _ in range(10)]
 
         with app.test_client() as c, authenticated_user(c):
             rv = json_request(c.get, '/api/queries')
@@ -250,7 +244,7 @@ class QueryAPITest(BaseTestCase, AuthenticationTestMixin):
 
 class VisualizationAPITest(BaseTestCase):
     def test_create_visualization(self):
-        query = query_factory.create()
+        query = self.factory.create_query()
         data = {
             'query_id': query.id,
             'name': 'Chart',
@@ -267,7 +261,7 @@ class VisualizationAPITest(BaseTestCase):
             self.assertDictContainsSubset(data, rv.json)
 
     def test_delete_visualization(self):
-        visualization = visualization_factory.create()
+        visualization = self.factory.create_visualization()
         with app.test_client() as c, authenticated_user(c):
             rv = json_request(c.delete, '/api/visualizations/{0}'.format(visualization.id))
 
@@ -276,7 +270,7 @@ class VisualizationAPITest(BaseTestCase):
             self.assertEquals(models.Visualization.select().count(), 1)
 
     def test_update_visualization(self):
-        visualization = visualization_factory.create()
+        visualization = self.factory.create_visualization()
 
         with app.test_client() as c, authenticated_user(c):
             rv = json_request(c.post, '/api/visualizations/{0}'.format(visualization.id),
@@ -292,13 +286,12 @@ class QueryResultAPITest(BaseTestCase, AuthenticationTestMixin):
         super(QueryResultAPITest, self).setUp()
 
     def test_post_result_list(self):
-        data_source = data_source_factory.create()
-        query_result = query_result_factory.create()
-        query = query_factory.create()
+        query_result = self.factory.create_query_result()
+        query = self.factory.create_query()
 
         with app.test_client() as c, authenticated_user(c):
             rv = json_request(c.post, '/api/query_results',
-                              data={'data_source_id': data_source.id,
+                              data={'data_source_id': self.factory.data_source.id,
                                     'query': query.query})
             self.assertEquals(rv.status_code, 200)
 
@@ -332,8 +325,7 @@ class TestLogin(BaseTestCase):
             self.assertFalse(login_user_mock.called)
 
     def test_submit_correct_user_and_password(self):
-
-        user = user_factory.create()
+        user = self.factory.user
         user.hash_password('password')
         user.save()
 
@@ -343,7 +335,7 @@ class TestLogin(BaseTestCase):
             login_user_mock.assert_called_with(user, remember=False)
 
     def test_submit_correct_user_and_password_and_remember_me(self):
-        user = user_factory.create()
+        user = self.factory.user
         user.hash_password('password')
         user.save()
 
@@ -353,7 +345,7 @@ class TestLogin(BaseTestCase):
             login_user_mock.assert_called_with(user, remember=True)
 
     def test_submit_correct_user_and_password_with_next(self):
-        user = user_factory.create()
+        user = self.factory.user
         user.hash_password('password')
         user.save()
 
@@ -371,7 +363,7 @@ class TestLogin(BaseTestCase):
             self.assertFalse(login_user_mock.called)
 
     def test_submit_incorrect_password(self):
-        user = user_factory.create()
+        user = self.factory.user
         user.hash_password('password')
         user.save()
 
@@ -381,7 +373,7 @@ class TestLogin(BaseTestCase):
             self.assertFalse(login_user_mock.called)
 
     def test_submit_incorrect_password(self):
-        user = user_factory.create()
+        user = self.factory.user
 
         with app.test_client() as c, patch('redash.handlers.authentication.login_user') as login_user_mock:
             rv = c.post('/login', data={'email': user.email, 'password': ''})
@@ -415,7 +407,7 @@ class TestLogout(BaseTestCase):
 
 class DataSourceTypesTest(BaseTestCase):
     def test_returns_data_for_admin(self):
-        admin = user_factory.create(groups=['admin', 'default'])
+        admin = self.factory.create_admin()
         with app.test_client() as c, authenticated_user(c, user=admin):
             rv = c.get("/api/data_sources/types")
             self.assertEqual(rv.status_code, 200)
@@ -428,7 +420,7 @@ class DataSourceTypesTest(BaseTestCase):
 
 class DataSourceTest(BaseTestCase):
     def test_returns_400_when_missing_fields(self):
-        admin = user_factory.create(groups=['admin', 'default'])
+        admin = self.factory.create_admin()
         with app.test_client() as c, authenticated_user(c, user=admin):
             rv = c.post("/api/data_sources")
             self.assertEqual(rv.status_code, 400)
@@ -438,7 +430,7 @@ class DataSourceTest(BaseTestCase):
             self.assertEqual(rv.status_code, 400)
 
     def test_returns_400_when_configuration_invalid(self):
-        admin = user_factory.create(groups=['admin', 'default'])
+        admin = self.factory.create_admin()
         with app.test_client() as c, authenticated_user(c, user=admin):
             rv = json_request(c.post, '/api/data_sources',
                               data={'name': 'DS 1', 'type': 'pg', 'options': '{}'})
@@ -446,7 +438,7 @@ class DataSourceTest(BaseTestCase):
             self.assertEqual(rv.status_code, 400)
 
     def test_creates_data_source(self):
-        admin = user_factory.create(groups=['admin', 'default'])
+        admin = self.factory.create_admin()
         with app.test_client() as c, authenticated_user(c, user=admin):
             rv = json_request(c.post, '/api/data_sources',
                               data={'name': 'DS 1', 'type': 'pg', 'options': {"dbname": "redash"}})

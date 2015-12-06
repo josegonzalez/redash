@@ -40,7 +40,7 @@ class Sequence(object):
 
 user_factory = ModelFactory(redash.models.User,
                             name='John Doe', email=Sequence('test{}@example.com'),
-                            groups=['default'],
+                            groups=[2],
                             org=1)
 
 
@@ -85,3 +85,63 @@ widget_factory = ModelFactory(redash.models.Widget,
                               options='{}',
                               dashboard=dashboard_factory.create,
                               visualization=visualization_factory.create)
+
+
+class Factory(object):
+    def __init__(self):
+        self.org, self.admin_group, self.default_group = redash.models.init_db()
+        self.data_source = data_source_factory.create(org=self.org)
+        self.user = self.create_user()
+        redash.models.DataSourceGroups.create(group=self.default_group, data_source=self.data_source,
+                                              permissions=['view', 'create'])
+
+    def create_user(self, **kwargs):
+        args = {
+            'org': self.org,
+            'groups': [self.default_group.id]
+        }
+        args.update(kwargs)
+        return user_factory.create(**args)
+
+    def create_admin(self, **kwargs):
+        args = {
+            'org': self.org,
+            'groups': [self.admin_group.id, self.default_group.id]
+        }
+        args.update(kwargs)
+        return user_factory.create(**args)
+
+    def create_data_source(self, **kwargs):
+        args = {
+            'org': self.org
+        }
+        args.update(kwargs)
+        return data_source_factory.create(**args)
+
+    def create_dashboard(self, **kwargs):
+        args = {
+            'user': self.user
+        }
+        args.update(kwargs)
+        return dashboard_factory.create(**args)
+
+    def create_query(self, **kwargs):
+        args = {
+            'user': self.user,
+            'data_source': self.data_source
+        }
+        args.update(kwargs)
+        return query_factory.create(**args)
+
+    def create_query_result(self, **kwargs):
+        args = {
+            'data_source': self.data_source
+        }
+        args.update(kwargs)
+        return query_result_factory.create(**args)
+
+    def create_visualization(self, **kwargs):
+        return visualization_factory.create(**kwargs)
+
+    def create_widget(self, **kwargs):
+        return widget_factory.create(**kwargs)

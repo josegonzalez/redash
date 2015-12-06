@@ -8,7 +8,7 @@ from itertools import chain
 
 from redash import models
 from redash.wsgi import app, api
-from redash.permissions import require_permission
+from redash.permissions import require_permission, assert_access, require_admin_or_owner
 from redash.handlers.base import BaseResource
 
 
@@ -63,11 +63,14 @@ class QueryListAPI(BaseResource):
     @require_permission('create_query')
     def post(self):
         query_def = request.get_json(force=True)
+        data_source = models.DataSource.get_by_id_and_org(self.current_org, query_def.pop('data_source_id'))
+        assert_access(data_source.groups, self.current_user, 'create')
+
         for field in ['id', 'created_at', 'api_key', 'visualizations', 'latest_query_data', 'last_modified_by']:
             query_def.pop(field, None)
 
         query_def['user'] = self.current_user
-        query_def['data_source'] = query_def.pop('data_source_id')
+        query_def['data_source'] = data_source
         query = models.Query(**query_def)
         query.save()
 
@@ -75,18 +78,21 @@ class QueryListAPI(BaseResource):
 
     @require_permission('view_query')
     def get(self):
-        return [q.to_dict(with_stats=True) for q in models.Query.all_queries()]
+        return [q.to_dict(with_stats=True) for q in models.Query.all_queries(self.current_user.groups)]
 
 
 class QueryAPI(BaseResource):
     @require_permission('edit_query')
     def post(self, query_id):
         query = models.Query.get_by_id(query_id)
+        require_admin_or_owner(query.user_id)
 
         query_def = request.get_json(force=True)
         for field in ['id', 'created_at', 'api_key', 'visualizations', 'latest_query_data', 'user', 'last_modified_by']:
             query_def.pop(field, None)
 
+        # TODO(@arikfr): after running a query it updates all relevant queries with the new result. So is this really
+        # needed?
         if 'latest_query_data_id' in query_def:
             query_def['latest_query_data'] = query_def.pop('latest_query_data_id')
 
@@ -104,7 +110,9 @@ class QueryAPI(BaseResource):
 
     @require_permission('view_query')
     def get(self, query_id):
-        q = models.Query.get(models.Query.id == query_id)
+        q = models.Query.get_by_id(query_id)
+        assert_access(q.groups, self.current_user, 'view')
+
         if q:
             return q.to_dict(with_visualizations=True)
         else:
@@ -112,15 +120,10 @@ class QueryAPI(BaseResource):
 
     # TODO: move to resource of its own? (POST /queries/{id}/archive)
     def delete(self, query_id):
-        q = models.Query.get(models.Query.id == query_id)
+        query = models.Query.get_by_id(query_id)
+        require_admin_or_owner(query.user_id)
+        query.archive()
 
-        if q:
-            if q.user.id == self.current_user.id or self.current_user.has_permission('admin'):
-                q.archive()
-            else:
-                abort(403)
-        else:
-            abort(404, message="Query not found.")
 
 api.add_resource(QuerySearchAPI, '/api/queries/search', endpoint='queries_search')
 api.add_resource(QueryRecentAPI, '/api/queries/recent', endpoint='recent_queries')

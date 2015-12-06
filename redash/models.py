@@ -151,7 +151,6 @@ class Organization(ModelTimestampsMixin, BaseModel):
     name = peewee.CharField()
     domain = peewee.CharField(null=True, unique=True)
     settings = JSONField()
-    # owner? or just through groups?
 
     class Meta:
         db_table = 'organizations'
@@ -159,6 +158,10 @@ class Organization(ModelTimestampsMixin, BaseModel):
     @classmethod
     def get_by_domain(cls, domain):
         return cls.get(cls.domain == domain)
+
+    @property
+    def default_group(self):
+        return self.groups.where(Group.name=='default').first()
 
 
 class Group(BaseModel):
@@ -185,16 +188,18 @@ class Group(BaseModel):
     def __unicode__(self):
         return unicode(self.id)
 
+    @classmethod
+    def get_by_name(cls, name):
+        return cls.get(cls.name == name)
+
 
 class User(ModelTimestampsMixin, BaseModel, UserMixin, PermissionsCheckMixin):
-    DEFAULT_GROUPS = ['default']
-
     id = peewee.PrimaryKeyField()
     org = peewee.ForeignKeyField(Organization, related_name="users")
     name = peewee.CharField(max_length=320)
     email = peewee.CharField(max_length=320, index=True, unique=True)
     password_hash = peewee.CharField(max_length=128, null=True)
-    groups = ArrayField(peewee.CharField, default=DEFAULT_GROUPS)
+    groups = ArrayField(peewee.IntegerField, null=True)
     api_key = peewee.CharField(max_length=40, unique=True)
 
     class Meta:
@@ -239,7 +244,7 @@ class User(ModelTimestampsMixin, BaseModel, UserMixin, PermissionsCheckMixin):
     def permissions(self):
         # TODO: this should be cached.
         return list(itertools.chain(*[g.permissions for g in
-                                      Group.select().where(Group.name << self.groups)]))
+                                      Group.select().where(Group.id << self.groups)]))
 
     @classmethod
     def get_by_email(cls, email):
@@ -286,6 +291,7 @@ class DataSource(BaseModel):
             d['options'] = self.configuration
             d['queue_name'] = self.queue_name
             d['scheduled_queue_name'] = self.scheduled_queue_name
+            d['groups'] = self.groups
 
         return d
 
@@ -333,6 +339,20 @@ class DataSource(BaseModel):
     @classmethod
     def all(cls, org):
         return cls.select().where(cls.org==org).order_by(cls.id.asc())
+
+    @property
+    def groups(self):
+        groups = DataSourceGroups.select().where(DataSourceGroups.data_source==self)
+        return dict(map(lambda g: (g.group_id, g.permissions), groups))
+
+
+class DataSourceGroups(BaseModel):
+    data_source = peewee.ForeignKeyField(DataSource)
+    group = peewee.ForeignKeyField(Group)
+    permissions = ArrayField(peewee.CharField)
+
+    class Meta:
+        db_table = "data_source_groups"
 
 
 class QueryResult(BaseModel):
@@ -406,6 +426,10 @@ class QueryResult(BaseModel):
 
     def __unicode__(self):
         return u"%d | %s | %s" % (self.id, self.query_hash, self.retrieved_at)
+
+    @property
+    def groups(self):
+        return self.data_source.groups
 
 
 def should_schedule_next(previous_iteration, now, schedule):
@@ -490,11 +514,13 @@ class Query(ModelTimestampsMixin, BaseModel):
         self.save()
 
     @classmethod
-    def all_queries(cls):
+    def all_queries(cls, groups):
         q = Query.select(Query, User, QueryResult.retrieved_at, QueryResult.runtime)\
             .join(QueryResult, join_type=peewee.JOIN_LEFT_OUTER)\
             .switch(Query).join(User)\
+            .join(DataSourceGroups, on=(Query.data_source==DataSourceGroups.data_source))\
             .where(Query.is_archived==False)\
+            .where(DataSourceGroups.group << groups)\
             .group_by(Query.id, User.id, QueryResult.id, QueryResult.retrieved_at, QueryResult.runtime)\
             .order_by(cls.created_at.desc())
 
@@ -587,6 +613,10 @@ class Query(ModelTimestampsMixin, BaseModel):
     def retrieved_at(self):
         return self.latest_query_data.retrieved_at
 
+    @property
+    def groups(self):
+        return self.data_source.groups
+
     def __unicode__(self):
         return unicode(self.id)
 
@@ -652,6 +682,10 @@ class Alert(ModelTimestampsMixin, BaseModel):
 
     def subscribers(self):
         return User.select().join(AlertSubscription).where(AlertSubscription.alert==self)
+
+    @property
+    def groups(self):
+        return self.query.groups
 
 
 class AlertSubscription(ModelTimestampsMixin, BaseModel):
@@ -876,13 +910,15 @@ class Event(BaseModel):
         return event
 
 
-all_models = (Organization, DataSource, User, QueryResult, Query, Alert, AlertSubscription, Dashboard, Visualization, Widget, Group, Event)
+all_models = (Organization, Group, DataSource, DataSourceGroups, User, QueryResult, Query, Alert, AlertSubscription, Dashboard, Visualization, Widget, Event)
 
 
 def init_db():
     default_org = Organization.create(name="Default", settings={})
-    Group.create(name='admin', permissions=['admin'], org=default_org)
-    Group.create(name='default', permissions=Group.DEFAULT_PERMISSIONS, org=default_org)
+    admin_group = Group.create(name='admin', permissions=['admin'], org=default_org)
+    default_group = Group.create(name='default', permissions=Group.DEFAULT_PERMISSIONS, org=default_org)
+
+    return default_org, admin_group, default_group
 
 
 def create_db(create_tables, drop_tables):

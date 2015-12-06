@@ -1,6 +1,24 @@
 import functools
 from flask.ext.login import current_user
 from flask.ext.restful import abort
+from funcy import distinct, flatten
+
+
+def assert_access(object_groups, user, required_permission):
+    if 'admin' in user.permissions:
+        # TODO: remove duplication
+        return 'view', 'create'
+
+    matching_groups = set(object_groups.keys()).intersection(user.groups)
+
+    if not matching_groups:
+        abort(403)
+
+    permissions = distinct(flatten([object_groups[group] for group in matching_groups]))
+    if required_permission not in permissions:
+        abort(403)
+
+    return permissions
 
 
 class require_permissions(object):
