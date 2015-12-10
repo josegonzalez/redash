@@ -38,9 +38,11 @@ def login():
                            show_google_openid=settings.GOOGLE_OAUTH_ENABLED,
                            show_saml_login=settings.SAML_LOGIN_ENABLED)
 
+
 @app.route('/logout')
 def logout():
     logout_user()
+    # TODO(@arikfr): need to check if this is really needed.
     session.pop('openid', None)
 
     return redirect('/login')
