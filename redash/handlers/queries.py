@@ -21,24 +21,6 @@ def format_sql_query():
     return sqlparse.format(query, reindent=True, keyword_case='upper')
 
 
-@app.route('/queries/new', methods=['POST'])
-@login_required
-def create_query_route():
-    query = request.form.get('query', None)
-    data_source_id = request.form.get('data_source_id', None)
-
-    if query is None or data_source_id is None:
-        abort(400)
-
-    query = models.Query.create(name="New Query",
-                                query=query,
-                                data_source=data_source_id,
-                                user=current_user._get_current_object(),
-                                schedule=None)
-
-    return redirect('/queries/{}'.format(query.id), 303)
-
-
 class QuerySearchAPI(BaseResource):
     @require_permission('view_query')
     def get(self):
