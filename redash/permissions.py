@@ -4,7 +4,7 @@ from flask.ext.restful import abort
 from funcy import distinct, flatten
 
 
-def assert_access(object_groups, user, required_permission):
+def require_access(object_groups, user, required_permission):
     if 'admin' in user.permissions:
         # TODO: remove duplication
         return 'view', 'create'

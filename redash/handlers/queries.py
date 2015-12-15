@@ -8,7 +8,7 @@ from itertools import chain
 
 from redash import models
 from redash.wsgi import app, api
-from redash.permissions import require_permission, assert_access, require_admin_or_owner
+from redash.permissions import require_permission, require_access, require_admin_or_owner
 from redash.handlers.base import BaseResource
 
 
@@ -46,7 +46,7 @@ class QueryListAPI(BaseResource):
     def post(self):
         query_def = request.get_json(force=True)
         data_source = models.DataSource.get_by_id_and_org(self.current_org, query_def.pop('data_source_id'))
-        assert_access(data_source.groups, self.current_user, 'create')
+        require_access(data_source.groups, self.current_user, 'create')
 
         for field in ['id', 'created_at', 'api_key', 'visualizations', 'latest_query_data', 'last_modified_by']:
             query_def.pop(field, None)
@@ -93,7 +93,7 @@ class QueryAPI(BaseResource):
     @require_permission('view_query')
     def get(self, query_id):
         q = models.Query.get_by_id(query_id)
-        assert_access(q.groups, self.current_user, 'view')
+        require_access(q.groups, self.current_user, 'view')
 
         if q:
             return q.to_dict(with_visualizations=True)
