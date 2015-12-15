@@ -542,8 +542,8 @@ class Query(ModelTimestampsMixin, BaseModel):
         return outdated_queries.values()
 
     @classmethod
-    def search(cls, term):
-        # This is very naive implementation of search, to be replaced with PostgreSQL full-text-search solution.
+    def search(cls, term, groups):
+        # TODO: This is very naive implementation of search, to be replaced with PostgreSQL full-text-search solution.
 
         where = (cls.name**u"%{}%".format(term)) | (cls.description**u"%{}%".format(term))
 
@@ -552,16 +552,22 @@ class Query(ModelTimestampsMixin, BaseModel):
 
         where &= cls.is_archived == False
 
-        return cls.select().where(where).order_by(cls.created_at.desc())
+        return cls.select()\
+                  .join(DataSourceGroups, on=(Query.data_source==DataSourceGroups.data_source)) \
+                  .where(where) \
+                  .where(DataSourceGroups.group << groups)\
+                  .order_by(cls.created_at.desc())
 
     @classmethod
-    def recent(cls, user_id=None, limit=20):
+    def recent(cls, groups, user_id=None, limit=20):
         # TODO: instead of t2 here, we should define table_alias for Query table
         query = cls.select().where(Event.created_at > peewee.SQL("current_date - 7")).\
-            join(Event, on=(Query.id == peewee.SQL("t2.object_id::integer"))).\
+            join(Event, on=(Query.id == peewee.SQL("t2.object_id::integer"))). \
+            join(DataSourceGroups, on=(Query.data_source==DataSourceGroups.data_source)). \
             where(Event.action << ('edit', 'execute', 'edit_name', 'edit_description', 'view_source')).\
             where(~(Event.object_id >> None)).\
             where(Event.object_type == 'query'). \
+            where(DataSourceGroups.group << groups).\
             where(cls.is_archived == False).\
             group_by(Event.object_id, Query.id).\
             order_by(peewee.SQL("count(0) desc"))

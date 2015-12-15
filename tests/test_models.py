@@ -38,7 +38,7 @@ class QueryTest(BaseTestCase):
         q2 = self.factory.create_query(name=u"Testing seåřċħing")
         q3 = self.factory.create_query(name=u"Testing seå řċħ")
 
-        queries = models.Query.search(u"seåřċħ")
+        queries = models.Query.search(u"seåřċħ", [self.factory.default_group])
 
         self.assertIn(q1, queries)
         self.assertIn(q2, queries)
@@ -49,7 +49,7 @@ class QueryTest(BaseTestCase):
         q2 = self.factory.create_query(description=u"Testing seåřċħing")
         q3 = self.factory.create_query(description=u"Testing seå řċħ")
 
-        queries = models.Query.search(u"seåřċħ")
+        queries = models.Query.search(u"seåřċħ", [self.factory.default_group])
 
         self.assertIn(q1, queries)
         self.assertIn(q2, queries)
@@ -60,11 +60,36 @@ class QueryTest(BaseTestCase):
         q2 = self.factory.create_query(description="Testing searching")
         q3 = self.factory.create_query(description="Testing sea rch")
 
-        queries = models.Query.search(str(q3.id))
+        queries = models.Query.search(str(q3.id), [self.factory.default_group])
 
         self.assertIn(q3, queries)
         self.assertNotIn(q1, queries)
         self.assertNotIn(q2, queries)
+
+    def test_search_respects_groups(self):
+        other_group = models.Group.create(org=self.factory.org, name="Other Group")
+        ds = self.factory.create_data_source()
+        models.DataSourceGroups.create(group=other_group, data_source=ds, permissions=['view', 'create'])
+
+        q1 = self.factory.create_query(description="Testing search", data_source=ds)
+        q2 = self.factory.create_query(description="Testing searching")
+        q3 = self.factory.create_query(description="Testing sea rch")
+
+        queries = models.Query.search("Testing", [self.factory.default_group])
+
+        self.assertNotIn(q1, queries)
+        self.assertIn(q2, queries)
+        self.assertIn(q3, queries)
+
+        queries = models.Query.search("Testing", [other_group, self.factory.default_group])
+        self.assertIn(q1, queries)
+        self.assertIn(q2, queries)
+        self.assertIn(q3, queries)
+
+        queries = models.Query.search("Testing", [other_group])
+        self.assertIn(q1, queries)
+        self.assertNotIn(q2, queries)
+        self.assertNotIn(q3, queries)
 
     def test_save_creates_default_visualization(self):
         q = self.factory.create_query()
@@ -78,6 +103,53 @@ class QueryTest(BaseTestCase):
         q.save()
 
         self.assertNotEqual(q.updated_at, one_day_ago)
+
+
+class QueryRecentTest(BaseTestCase):
+    def test_global_recent(self):
+        q1 = self.factory.create_query()
+        q2 = self.factory.create_query()
+
+        models.Event.create(org=self.factory.org, user=self.factory.user, action="edit",
+                            object_type="query", object_id=q1.id)
+
+        recent = models.Query.recent([self.factory.default_group])
+
+        self.assertIn(q1, recent)
+        self.assertNotIn(q2, recent)
+
+    def test_recent_for_user(self):
+        q1 = self.factory.create_query()
+        q2 = self.factory.create_query()
+
+        models.Event.create(org=self.factory.org, user=self.factory.user, action="edit",
+                            object_type="query", object_id=q1.id)
+
+        recent = models.Query.recent([self.factory.default_group], user_id=self.factory.user.id)
+
+        self.assertIn(q1, recent)
+        self.assertNotIn(q2, recent)
+
+        recent = models.Query.recent([self.factory.default_group], user_id=self.factory.user.id+1)
+        self.assertNotIn(q1, recent)
+        self.assertNotIn(q2, recent)
+
+    def test_respects_groups(self):
+        q1 = self.factory.create_query()
+        other_group = models.Group.create(org=self.factory.org, name="Other Group")
+        ds = self.factory.create_data_source()
+        models.DataSourceGroups.create(group=other_group, data_source=ds, permissions=['view', 'create'])
+        q2 = self.factory.create_query(data_source=ds)
+
+        models.Event.create(org=self.factory.org, user=self.factory.user, action="edit",
+                            object_type="query", object_id=q1.id)
+        models.Event.create(org=self.factory.org, user=self.factory.user, action="edit",
+                            object_type="query", object_id=q2.id)
+
+        recent = models.Query.recent([self.factory.default_group])
+
+        self.assertIn(q1, recent)
+        self.assertNotIn(q2, recent)
 
 
 class ShouldScheduleNextTest(TestCase):

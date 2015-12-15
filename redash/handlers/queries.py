@@ -26,17 +26,17 @@ class QuerySearchAPI(BaseResource):
     def get(self):
         term = request.args.get('q', '')
 
-        return [q.to_dict() for q in models.Query.search(term)]
+        return [q.to_dict() for q in models.Query.search(term, self.current_user.groups)]
 
 
 class QueryRecentAPI(BaseResource):
     @require_permission('view_query')
     def get(self):
-        recent = [d.to_dict() for d in models.Query.recent(current_user.id)]
+        recent = [d.to_dict() for d in models.Query.recent(self.current_user.groups, self.current_user.id)]
 
         global_recent = []
         if len(recent) < 10:
-            global_recent = [d.to_dict() for d in models.Query.recent()]
+            global_recent = [d.to_dict() for d in models.Query.recent(self.current_user.groups)]
 
         return take(20, distinct(chain(recent, global_recent), key=lambda d: d['id']))
 
