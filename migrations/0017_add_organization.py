@@ -9,18 +9,20 @@ if __name__ == '__main__':
         print "If this is an issue for you, please report it on GitHub."
         print "Currently re:dash will support only your first defined Google Apps Domain:"
         print "#" * 80
-        print settings.GOOGLE_APPS_DOMAIN[0]
+        domain = settings.GOOGLE_APPS_DOMAIN.pop()
+        print domain
+    elif settings.GOOGLE_APPS_DOMAIN:
+        domain = settings.GOOGLE_APPS_DOMAIN.pop()
+    else:
+        domain = None
 
     migrator = PostgresqlMigrator(db.database)
 
     with db.database.transaction():
         Organization.create_table()
-        if settings.GOOGLE_APPS_DOMAIN:
-            domain = settings.GOOGLE_APPS_DOMAIN[0]
-        else:
-            domain = None
 
         default_org = Organization.create(name="Default", settings={}, domain=domain)
+        default_org = Organization.select().first()
 
         column = Group.org
         column.default = default_org
@@ -30,6 +32,7 @@ if __name__ == '__main__':
             migrator.add_column('events', 'org_id', column),
             migrator.add_column('data_sources', 'org_id', column),
             migrator.add_column('users', 'org_id', column),
+            migrator.add_column('dashboards', 'org_id', column),
         )
 
     db.close_db(None)

@@ -718,6 +718,7 @@ class AlertSubscription(ModelTimestampsMixin, BaseModel):
 
 class Dashboard(ModelTimestampsMixin, BaseModel):
     id = peewee.PrimaryKeyField()
+    org = peewee.ForeignKeyField(Organization, related_name="dashboards")
     slug = peewee.CharField(max_length=140, index=True)
     name = peewee.CharField(max_length=100)
     user_email = peewee.CharField(max_length=360, null=True)
@@ -773,17 +774,26 @@ class Dashboard(ModelTimestampsMixin, BaseModel):
         }
 
     @classmethod
-    def get_by_slug(cls, slug):
-        return cls.get(cls.slug == slug)
+    def all(cls, org):
+        return cls.select().where(cls.org==org, cls.is_archived==False)
 
     @classmethod
-    def recent(cls, user_id=None, limit=20):
+    def get_by_slug_and_org(cls, slug, org):
+        return cls.get(cls.slug == slug, cls.org==org)
+
+    @classmethod
+    def get_by_id_and_org(cls, dashboard_id, org):
+        return cls.get(cls.id == dashboard_id, cls.org==org)
+
+    @classmethod
+    def recent(cls, org, user_id=None, limit=20):
         query = cls.select().where(Event.created_at > peewee.SQL("current_date - 7")). \
             join(Event, on=(Dashboard.id == peewee.SQL("t2.object_id::integer"))). \
             where(Event.action << ('edit', 'view')).\
             where(~(Event.object_id >> None)). \
             where(Event.object_type == 'dashboard'). \
             where(Dashboard.is_archived == False). \
+            where(Dashboard.org == org).\
             group_by(Event.object_id, Dashboard.id). \
             order_by(peewee.SQL("count(0) desc"))
 
