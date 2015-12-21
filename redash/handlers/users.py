@@ -9,13 +9,13 @@ from redash.wsgi import api
 from redash.tasks import record_event
 from redash.permissions import require_permission, require_admin_or_owner, is_admin_or_owner, \
     require_permission_or_owner
-from redash.handlers.base import BaseResource, require_fields
+from redash.handlers.base import BaseResource, require_fields, get_object_or_404
 
 
 class UserListResource(BaseResource):
     @require_permission('list_users')
     def get(self):
-        return [u.to_dict() for u in models.User.select()]
+        return [u.to_dict() for u in models.User.all(self.current_org)]
 
     @require_permission('admin')
     def post(self):
@@ -47,13 +47,13 @@ class UserListResource(BaseResource):
 class UserResource(BaseResource):
     def get(self, user_id):
         require_permission_or_owner('list_users', user_id)
-        user = models.User.get_by_id(user_id)
+        user = get_object_or_404(models.User.get_by_id_and_org, user_id, self.current_org)
         
         return user.to_dict(with_api_key=is_admin_or_owner(user_id))
 
     def post(self, user_id):
         require_admin_or_owner(user_id)
-        user = models.User.get_by_id(user_id)
+        user = models.User.get_by_id_and_org(user_id, self.current_org)
 
         req = request.get_json(True)
 

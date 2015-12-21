@@ -33,6 +33,21 @@ class TestUserListResourcePost(BaseTestCase):
             self.assertEqual(rv.json['email'], test_user['email'])
 
 
+class TestUserListGet(BaseTestCase):
+    def test_returns_users_for_given_org_only(self):
+        user1 = self.factory.user
+        user2 = self.factory.create_user()
+        org = models.Organization.create(name="Test", settings={})
+        user3 = self.factory.create_user(org=org)
+
+        with app.test_client() as c, authenticated_user(c) as user:
+            rv = json_request(c.get, "/api/users")
+            user_ids = map(lambda u: u['id'], rv.json)
+            self.assertIn(user1.id, user_ids)
+            self.assertIn(user2.id, user_ids)
+            self.assertNotIn(user3.id, user_ids)
+
+
 class TestUserResourceGet(BaseTestCase):
     def test_returns_api_key_for_your_own_user(self):
         with app.test_client() as c, authenticated_user(c) as user:
@@ -51,6 +66,14 @@ class TestUserResourceGet(BaseTestCase):
         with app.test_client() as c, authenticated_user(c):
             rv = json_request(c.get, "/api/users/{}".format(other_user.id))
             self.assertNotIn('api_key', rv.json)
+
+    def test_doesnt_return_user_from_different_org(self):
+        org = models.Organization.create(name="Test", settings={})
+        other_user = self.factory.create_user(org=org)
+
+        with app.test_client() as c, authenticated_user(c):
+            rv = json_request(c.get, "/api/users/{}".format(other_user.id))
+            self.assertEqual(rv.status_code, 404)
 
 
 class TestUserResourcePost(BaseTestCase):

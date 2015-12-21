@@ -52,7 +52,7 @@ data_source_factory = ModelFactory(redash.models.DataSource,
 
 
 dashboard_factory = ModelFactory(redash.models.Dashboard,
-                                 name='test', user=user_factory.create, layout='[]')
+                                 name='test', user=user_factory.create, layout='[]', org=1)
 
 
 query_factory = ModelFactory(redash.models.Query,
@@ -120,7 +120,8 @@ class Factory(object):
 
     def create_dashboard(self, **kwargs):
         args = {
-            'user': self.user
+            'user': self.user,
+            'org': self.org
         }
         args.update(kwargs)
         return dashboard_factory.create(**args)

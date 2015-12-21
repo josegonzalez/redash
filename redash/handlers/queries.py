@@ -45,7 +45,7 @@ class QueryListAPI(BaseResource):
     @require_permission('create_query')
     def post(self):
         query_def = request.get_json(force=True)
-        data_source = models.DataSource.get_by_id_and_org(self.current_org, query_def.pop('data_source_id'))
+        data_source = models.DataSource.get_by_id_and_org(query_def.pop('data_source_id'), self.current_org)
         require_access(data_source.groups, self.current_user, 'create')
 
         for field in ['id', 'created_at', 'api_key', 'visualizations', 'latest_query_data', 'last_modified_by']:

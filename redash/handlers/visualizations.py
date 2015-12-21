@@ -38,7 +38,7 @@ class VisualizationAPI(BaseResource):
 
     @require_permission('edit_query')
     def delete(self, visualization_id):
-        vis = models.Visualization.get(models.Visualization.id == visualization_id)
+        vis = models.Visualization.get_by_id(visualization_id)
         vis.delete_instance()
 
 api.add_resource(VisualizationListAPI, '/api/visualizations', endpoint='visualizations')

@@ -21,12 +21,12 @@ api.add_resource(DataSourceTypeListAPI, '/api/data_sources/types', endpoint='dat
 class DataSourceAPI(BaseResource):
     @require_permission('admin')
     def get(self, data_source_id):
-        data_source = models.DataSource.get_by_id_and_org(self.current_org, data_source_id)
+        data_source = models.DataSource.get_by_id_and_org(data_source_id, self.current_org)
         return data_source.to_dict(all=True)
 
     @require_permission('admin')
     def post(self, data_source_id):
-        data_source = models.DataSource.get_by_id_and_org(self.current_org, data_source_id)
+        data_source = models.DataSource.get_by_id_and_org(data_source_id, self.current_org)
         req = request.get_json(True)
 
         data_source.replace_secret_placeholders(req['options'])
@@ -43,7 +43,7 @@ class DataSourceAPI(BaseResource):
 
     @require_permission('admin')
     def delete(self, data_source_id):
-        data_source = models.DataSource.get_by_id_and_org(self.current_org, data_source_id)
+        data_source = models.DataSource.get_by_id_and_org(data_source_id, self.current_org)
         data_source.delete_instance(recursive=True)
 
         return make_response('', 204)
