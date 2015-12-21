@@ -145,4 +145,8 @@ class Factory(object):
         return visualization_factory.create(**kwargs)
 
     def create_widget(self, **kwargs):
-        return widget_factory.create(**kwargs)
+        args = {
+            'dashboard': self.create_dashboard()
+        }
+        args.update(kwargs)
+        return widget_factory.create(**args)

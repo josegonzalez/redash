@@ -110,7 +110,7 @@ class DashboardAPITest(BaseTestCase, AuthenticationTestMixin):
             rv = json_request(c.delete, '/api/dashboards/{0}'.format(d.slug))
             self.assertEquals(rv.status_code, 200)
 
-            d = models.Dashboard.get_by_slug(d.slug)
+            d = models.Dashboard.get_by_slug_and_org(d.slug, d.org)
             self.assertTrue(d.is_archived)
 
 
@@ -123,7 +123,7 @@ class WidgetAPITest(BaseTestCase):
             'width': width
         }
 
-        with app.test_client() as c, authenticated_user(c):
+        with app.test_client() as c, authenticated_user(c, user=self.factory.user):
             rv = json_request(c.post, '/api/widgets', data=data)
 
         return rv
@@ -168,7 +168,7 @@ class WidgetAPITest(BaseTestCase):
             'width': 2
         }
 
-        with app.test_client() as c, authenticated_user(c):
+        with app.test_client() as c, authenticated_user(c, user=self.factory.user):
             rv = json_request(c.post, '/api/widgets', data=data)
 
         self.assertEquals(rv.status_code, 200)
@@ -177,11 +177,11 @@ class WidgetAPITest(BaseTestCase):
     def test_delete_widget(self):
         widget = self.factory.create_widget()
 
-        with app.test_client() as c, authenticated_user(c):
+        with app.test_client() as c, authenticated_user(c, user=self.factory.user):
             rv = json_request(c.delete, '/api/widgets/{0}'.format(widget.id))
 
             self.assertEquals(rv.status_code, 200)
-            dashboard = models.Dashboard.get_by_slug(widget.dashboard.slug)
+            dashboard = models.Dashboard.get_by_slug_and_org(widget.dashboard.slug, widget.dashboard.org)
             self.assertEquals(dashboard.widgets.count(), 0)
             self.assertEquals(dashboard.layout, '[]')
 
