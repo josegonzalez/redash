@@ -376,7 +376,7 @@ class QueryResult(BaseModel):
             'query_hash': self.query_hash,
             'query': self.query,
             'data': json.loads(self.data),
-            'data_source_id': self._data.get('data_source', None),
+            'data_source_id': self.data_source_id,
             'runtime': self.runtime,
             'retrieved_at': self.retrieved_at
         }
@@ -487,14 +487,14 @@ class Query(ModelTimestampsMixin, BaseModel):
             'is_archived': self.is_archived,
             'updated_at': self.updated_at,
             'created_at': self.created_at,
-            'data_source_id': self._data.get('data_source', None)
+            'data_source_id': self.data_source_id
         }
 
         if with_user:
             d['user'] = self.user.to_dict()
             d['last_modified_by'] = self.last_modified_by.to_dict() if self.last_modified_by is not None else None
         else:
-            d['user_id'] = self._data['user']
+            d['user_id'] = self.user_id
 
         if with_stats:
             d['retrieved_at'] = self.retrieved_at
@@ -612,7 +612,7 @@ class Query(ModelTimestampsMixin, BaseModel):
     def _set_api_key(self):
         if not self.api_key:
             self.api_key = hashlib.sha1(
-                u''.join((str(time.time()), self.query, str(self._data['user']), self.name)).encode('utf-8')).hexdigest()
+                u''.join((str(time.time()), self.query, str(self.user_id), self.name)).encode('utf-8')).hexdigest()
 
     @property
     def runtime(self):
@@ -667,8 +667,8 @@ class Alert(ModelTimestampsMixin, BaseModel):
             d['query'] = self.query.to_dict()
             d['user'] = self.user.to_dict()
         else:
-            d['query_id'] = self._data['query']
-            d['user_id'] = self._data['user']
+            d['query_id'] = self.query_id
+            d['user_id'] = self.user_id
 
         return d
 
@@ -707,7 +707,7 @@ class AlertSubscription(ModelTimestampsMixin, BaseModel):
     def to_dict(self):
         return {
             'user': self.user.to_dict(),
-            'alert_id': self._data['alert']
+            'alert_id': self.alert_id
         }
 
     @classmethod
@@ -779,7 +779,7 @@ class Dashboard(ModelTimestampsMixin, BaseModel, BelongsToOrgMixin):
             'id': self.id,
             'slug': self.slug,
             'name': self.name,
-            'user_id': self._data['user'],
+            'user_id': self.user_id,
             'layout': layout,
             'dashboard_filters_enabled': self.dashboard_filters_enabled,
             'widgets': widgets_layout,
@@ -881,7 +881,7 @@ class Widget(ModelTimestampsMixin, BaseModel):
             'id': self.id,
             'width': self.width,
             'options': json.loads(self.options),
-            'dashboard_id': self._data['dashboard'],
+            'dashboard_id': self.dashboard_id,
             'text': self.text,
             'updated_at': self.updated_at,
             'created_at': self.created_at
@@ -917,7 +917,7 @@ class Event(BaseModel):
         db_table = 'events'
 
     def __unicode__(self):
-        return u"%s,%s,%s,%s" % (self._data['user'], self.action, self.object_type, self.object_id)
+        return u"%s,%s,%s,%s" % (self.user_id, self.action, self.object_type, self.object_id)
 
     @classmethod
     def record(cls, event):
