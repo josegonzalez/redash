@@ -13,7 +13,7 @@ class WidgetListAPI(BaseResource):
     def post(self):
         widget_properties = request.get_json(force=True)
         dashboard = models.Dashboard.get_by_id_and_org(widget_properties.pop('dashboard_id'), self.current_org)
-        require_admin_or_owner(dashboard.user)
+        require_admin_or_owner(dashboard.user.id)
 
         widget_properties['options'] = json.dumps(widget_properties['options'])
         widget_properties.pop('id', None)
@@ -46,7 +46,7 @@ class WidgetAPI(BaseResource):
     @require_permission('edit_dashboard')
     def delete(self, widget_id):
         widget = models.Widget.get_by_id(widget_id)
-        require_admin_or_owner(widget.dashboard.user)
+        require_admin_or_owner(widget.dashboard.user.id)
         widget.delete_instance()
 
         return {'layout': widget.dashboard.layout }

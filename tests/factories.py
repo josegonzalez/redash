@@ -142,11 +142,16 @@ class Factory(object):
         return query_result_factory.create(**args)
 
     def create_visualization(self, **kwargs):
-        return visualization_factory.create(**kwargs)
+        args = {
+            'query': self.create_query()
+        }
+        args.update(kwargs)
+        return visualization_factory.create(**args)
 
     def create_widget(self, **kwargs):
         args = {
-            'dashboard': self.create_dashboard()
+            'dashboard': self.create_dashboard(),
+            'visualization': self.create_visualization()
         }
         args.update(kwargs)
         return widget_factory.create(**args)

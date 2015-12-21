@@ -81,7 +81,27 @@ class DashboardAPITest(BaseTestCase, AuthenticationTestMixin):
 
             self.assertResponseEqual(expected, actual)
 
-    def test_get_non_existint_dashbaord(self):
+    def test_get_dashboard_filters_unauthorized_widgets(self):
+        dashboard = self.factory.create_dashboard()
+
+        restricted_ds = self.factory.create_data_source()
+        group = models.Group.create(name="Restricted", org=restricted_ds.org)
+        models.DataSourceGroups.create(group=group, data_source=restricted_ds, permissions=['create', 'view'])
+        query = self.factory.create_query(data_source=restricted_ds)
+        vis = self.factory.create_visualization(query=query)
+        restricted_widget = self.factory.create_widget(visualization=vis, dashboard=dashboard)
+        widget = self.factory.create_widget(dashboard=dashboard)
+        dashboard.layout = '[[{}, {}]]'.format(widget.id, restricted_widget.id)
+        dashboard.save()
+
+        with app.test_client() as c, authenticated_user(c, user=self.factory.user):
+            rv = json_request(c.get, '/api/dashboards/{0}'.format(dashboard.slug))
+            self.assertEquals(rv.status_code, 200)
+
+            self.assertTrue(rv.json['widgets'][0][1]['restricted'])
+            self.assertNotIn('restricted', rv.json['widgets'][0][0])
+
+    def test_get_non_existing_dashboard(self):
         with app.test_client() as c, authenticated_user(c):
             rv = c.get('/api/dashboards/not_existing')
             self.assertEquals(rv.status_code, 404)

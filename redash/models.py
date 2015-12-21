@@ -6,11 +6,13 @@ import threading
 import time
 import datetime
 import itertools
+from funcy import project
 
 import peewee
 from passlib.apps import custom_app_context as pwd_context
 from playhouse.postgres_ext import ArrayField, DateTimeTZField, PostgresqlExtDatabase
 from flask.ext.login import UserMixin, AnonymousUserMixin
+from permissions import has_access
 
 from redash import utils, settings, redis_connection
 from redash.query_runner import get_query_runner
@@ -732,16 +734,27 @@ class Dashboard(ModelTimestampsMixin, BaseModel, BelongsToOrgMixin):
     class Meta:
         db_table = 'dashboards'
 
-    def to_dict(self, with_widgets=False):
+    def to_dict(self, with_widgets=False, user=None):
         layout = json.loads(self.layout)
 
         if with_widgets:
-            widgets = Widget.select(Widget, Visualization, Query, User)\
+            widget_list = Widget.select(Widget, Visualization, Query, User)\
                 .where(Widget.dashboard == self.id)\
                 .join(Visualization, join_type=peewee.JOIN_LEFT_OUTER)\
                 .join(Query, join_type=peewee.JOIN_LEFT_OUTER)\
                 .join(User, join_type=peewee.JOIN_LEFT_OUTER)
-            widgets = {w.id: w.to_dict() for w in widgets}
+
+            widgets = {}
+
+            for w in widget_list:
+                if w.visualization_id is None:
+                    widgets[w.id] = w.to_dict()
+                elif user and has_access(w.visualization.query.groups, user, 'view'):
+                    widgets[w.id] = w.to_dict()
+                else:
+                    widgets[w.id] = project(w.to_dict(),
+                                            ('id', 'width', 'dashboard_id', 'options', 'created_at', 'updated_at'))
+                    widgets[w.id]['restricted'] = True
 
             # The following is a workaround for cases when the widget object gets deleted without the dashboard layout
             # updated. This happens for users with old databases that didn't have a foreign key relationship between

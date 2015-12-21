@@ -2,24 +2,27 @@ import functools
 from flask.ext.login import current_user
 from flask.ext.restful import abort
 from funcy import distinct, flatten
-from redash import models
 
 
-def require_access(object_groups, user, required_permission):
+def has_access(object_groups, user, required_permission):
     if 'admin' in user.permissions:
-        # TODO: remove duplication
-        return 'view', 'create'
+        return True
 
     matching_groups = set(object_groups.keys()).intersection(user.groups)
 
     if not matching_groups:
-        abort(403)
+        return False
 
     permissions = distinct(flatten([object_groups[group] for group in matching_groups]))
     if required_permission not in permissions:
-        abort(403)
+        return False
 
-    return permissions
+    return True
+
+
+def require_access(object_groups, user, required_permission):
+    if not has_access(object_groups, user, required_permission):
+        abort(403)
 
 
 class require_permissions(object):
@@ -44,9 +47,6 @@ def require_permission(permission):
 
 
 def has_permission_or_owner(permission, object_owner_id):
-    if isinstance(object_owner_id, models.User):
-        object_owner_id = object_owner_id.id
-
     return int(object_owner_id) == current_user.id or current_user.has_permission(permission)
 
 

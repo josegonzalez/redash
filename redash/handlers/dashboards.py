@@ -7,7 +7,7 @@ from itertools import chain
 from redash import models
 from redash.wsgi import api
 from redash.permissions import require_permission
-from redash.handlers.base import BaseResource
+from redash.handlers.base import BaseResource, get_object_or_404
 
 
 class DashboardRecentAPI(BaseResource):
@@ -40,12 +40,9 @@ class DashboardListAPI(BaseResource):
 
 class DashboardAPI(BaseResource):
     def get(self, dashboard_slug=None):
-        try:
-            dashboard = models.Dashboard.get_by_slug_and_org(dashboard_slug, self.current_org)
-        except models.Dashboard.DoesNotExist:
-            abort(404)
+        dashboard = get_object_or_404(models.Dashboard.get_by_slug_and_org, dashboard_slug, self.current_org)
 
-        return dashboard.to_dict(with_widgets=True)
+        return dashboard.to_dict(with_widgets=True, user=self.current_user)
 
     @require_permission('edit_dashboard')
     def post(self, dashboard_slug):
@@ -56,7 +53,7 @@ class DashboardAPI(BaseResource):
         dashboard.name = dashboard_properties['name']
         dashboard.save()
 
-        return dashboard.to_dict(with_widgets=True)
+        return dashboard.to_dict(with_widgets=True, user=self.current_user)
 
     @require_permission('edit_dashboard')
     def delete(self, dashboard_slug):
@@ -64,7 +61,7 @@ class DashboardAPI(BaseResource):
         dashboard.is_archived = True
         dashboard.save()
 
-        return dashboard.to_dict(with_widgets=True)
+        return dashboard.to_dict(with_widgets=True, user=self.current_user)
 
 api.add_resource(DashboardListAPI, '/api/dashboards', endpoint='dashboards')
 api.add_resource(DashboardRecentAPI, '/api/dashboards/recent', endpoint='recent_dashboards')
