@@ -2,6 +2,7 @@ import functools
 from flask.ext.login import current_user
 from flask.ext.restful import abort
 from funcy import distinct, flatten
+from redash import models
 
 
 def require_access(object_groups, user, required_permission):
@@ -43,6 +44,9 @@ def require_permission(permission):
 
 
 def has_permission_or_owner(permission, object_owner_id):
+    if isinstance(object_owner_id, models.User):
+        object_owner_id = object_owner_id.id
+
     return int(object_owner_id) == current_user.id or current_user.has_permission(permission)
 
 
