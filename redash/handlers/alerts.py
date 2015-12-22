@@ -6,18 +6,22 @@ from funcy import project
 from redash import models
 from redash.wsgi import api
 from redash.tasks import record_event
+from redash.permissions import require_access, require_admin_or_owner
 from redash.handlers.base import BaseResource, require_fields
 
 
 class AlertAPI(BaseResource):
     def get(self, alert_id):
         alert = models.Alert.get_by_id(alert_id)
+        require_access(alert.groups, self.current_user, 'view')
         return alert.to_dict()
 
     def post(self, alert_id):
         req = request.get_json(True)
         params = project(req, ('options', 'name', 'query_id', 'rearm'))
         alert = models.Alert.get_by_id(alert_id)
+        require_admin_or_owner(alert.user.id)
+
         if 'query_id' in params:
             params['query'] = params.pop('query_id')
 
@@ -39,9 +43,12 @@ class AlertListAPI(BaseResource):
         req = request.get_json(True)
         require_fields(req, ('options', 'name', 'query_id'))
 
+        query = models.Query.get_by_id(req['query_id'])
+        require_access(query.groups, self.current_user, 'view')
+
         alert = models.Alert.create(
             name=req['name'],
-            query=req['query_id'],
+            query=query,
             user=self.current_user,
             options=req['options']
         )
@@ -68,11 +75,14 @@ class AlertListAPI(BaseResource):
         return alert.to_dict()
 
     def get(self):
-        return [alert.to_dict() for alert in models.Alert.all()]
+        return [alert.to_dict() for alert in models.Alert.all(groups=self.current_user.groups)]
 
 
 class AlertSubscriptionListResource(BaseResource):
     def post(self, alert_id):
+        alert = models.Alert.get_by_id(alert_id)
+        require_access(alert.groups, self.current_user, 'view')
+
         subscription = models.AlertSubscription.create(alert=alert_id, user=self.current_user)
         record_event.delay({
             'user_id': self.current_user.id,
@@ -81,9 +91,13 @@ class AlertSubscriptionListResource(BaseResource):
             'object_id': alert_id,
             'object_type': 'alert'
         })
+
         return subscription.to_dict()
 
     def get(self, alert_id):
+        alert = models.Alert.get_by_id(alert_id)
+        require_access(alert.groups, self.current_user, 'view')
+
         subscriptions = models.AlertSubscription.all(alert_id)
         return [s.to_dict() for s in subscriptions]
 

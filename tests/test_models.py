@@ -68,8 +68,7 @@ class QueryTest(BaseTestCase):
 
     def test_search_respects_groups(self):
         other_group = models.Group.create(org=self.factory.org, name="Other Group")
-        ds = self.factory.create_data_source()
-        models.DataSourceGroups.create(group=other_group, data_source=ds, permissions=['view', 'create'])
+        ds = self.factory.create_data_source(group=other_group)
 
         q1 = self.factory.create_query(description="Testing search", data_source=ds)
         q2 = self.factory.create_query(description="Testing searching")
@@ -136,9 +135,7 @@ class QueryRecentTest(BaseTestCase):
 
     def test_respects_groups(self):
         q1 = self.factory.create_query()
-        other_group = models.Group.create(org=self.factory.org, name="Other Group")
-        ds = self.factory.create_data_source()
-        models.DataSourceGroups.create(group=other_group, data_source=ds, permissions=['view', 'create'])
+        ds = self.factory.create_data_source(group=self.factory.create_group())
         q2 = self.factory.create_query(data_source=ds)
 
         models.Event.create(org=self.factory.org, user=self.factory.user, action="edit",

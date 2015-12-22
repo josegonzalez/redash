@@ -64,6 +64,12 @@ query_factory = ModelFactory(redash.models.Query,
                              schedule=None,
                              data_source=data_source_factory.create)
 
+alert_factory = ModelFactory(redash.models.Alert,
+                             name=Sequence('Alert {}'),
+                             query=query_factory.create,
+                             user=user_factory.create,
+                             options={})
+
 query_result_factory = ModelFactory(redash.models.QueryResult,
                                     data='{"columns":{}, "rows":[]}',
                                     runtime=1,
@@ -111,12 +117,41 @@ class Factory(object):
         args.update(kwargs)
         return user_factory.create(**args)
 
+    def create_group(self, **kwargs):
+        args = {
+            'name': 'Group',
+            'org': self.org
+        }
+
+        args.update(kwargs)
+
+        return redash.models.Group.create(**args)
+
+    def create_alert(self, **kwargs):
+        args = {
+            'user': self.user,
+            'query': self.create_query()
+        }
+
+        args.update(**kwargs)
+        return alert_factory.create(**args)
+
     def create_data_source(self, **kwargs):
         args = {
             'org': self.org
         }
         args.update(kwargs)
-        return data_source_factory.create(**args)
+
+        data_source = data_source_factory.create(**args)
+
+        if 'group' in kwargs:
+            permissions = kwargs.pop('permissions', ['create', 'view'])
+
+            redash.models.DataSourceGroups.create(group=kwargs['group'],
+                                                  data_source=data_source,
+                                                  permissions=permissions)
+
+        return data_source
 
     def create_dashboard(self, **kwargs):
         args = {

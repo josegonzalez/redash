@@ -84,9 +84,7 @@ class DashboardAPITest(BaseTestCase, AuthenticationTestMixin):
     def test_get_dashboard_filters_unauthorized_widgets(self):
         dashboard = self.factory.create_dashboard()
 
-        restricted_ds = self.factory.create_data_source()
-        group = models.Group.create(name="Restricted", org=restricted_ds.org)
-        models.DataSourceGroups.create(group=group, data_source=restricted_ds, permissions=['create', 'view'])
+        restricted_ds = self.factory.create_data_source(group=self.factory.create_group())
         query = self.factory.create_query(data_source=restricted_ds)
         vis = self.factory.create_visualization(query=query)
         restricted_widget = self.factory.create_widget(visualization=vis, dashboard=dashboard)

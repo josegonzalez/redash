@@ -19,7 +19,8 @@ settings.DATABASE_CONFIG = {
     'threadlocals': True
 }
 
-from redash import models, redis_connection
+from redash import redis_connection
+import redash.models
 
 logging.getLogger("metrics").setLevel("ERROR")
 logging.getLogger('peewee').setLevel(logging.INFO)
@@ -27,12 +28,12 @@ logging.getLogger('peewee').setLevel(logging.INFO)
 
 class BaseTestCase(TestCase):
     def setUp(self):
-        models.create_db(True, True)
+        redash.models.create_db(True, True)
         self.factory = Factory()
 
     def tearDown(self):
-        models.db.close_db(None)
-        models.create_db(False, True)
+        redash.models.db.close_db(None)
+        redash.models.create_db(False, True)
         redis_connection.flushdb()
 
     def assertResponseEqual(self, expected, actual):

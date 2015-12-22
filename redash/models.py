@@ -648,8 +648,13 @@ class Alert(ModelTimestampsMixin, BaseModel):
         db_table = 'alerts'
 
     @classmethod
-    def all(cls):
-        return cls.select(Alert, User, Query).join(Query).switch(Alert).join(User)
+    def all(cls, groups):
+        return cls.select(Alert, User, Query)\
+            .join(Query)\
+            .join(DataSourceGroups, on=(Query.data_source==DataSourceGroups.data_source))\
+            .where(DataSourceGroups.group << groups)\
+            .switch(Alert)\
+            .join(User)
 
     def to_dict(self, full=True):
         d = {
