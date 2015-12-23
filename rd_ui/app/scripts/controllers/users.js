@@ -111,20 +111,15 @@
 
     $scope.gridConfig = {
       isPaginationEnabled: true,
-      itemsByPage: 50,
+      itemsByPage: 20,
       maxSize: 8,
     };
 
     $scope.gridColumns = [
       {
-        "label": "",
-        "map": "gravatar_url",
-        "cellTemplate": '<img src="{{dataRow.gravatar_url}}" height="40px"/>'
-      },
-      {
         "label": "Name",
         "map": "name",
-        "cellTemplate": '<a href="/users/{{dataRow.id}}">{{dataRow.name}}</a>'
+        "cellTemplate": '<img src="{{dataRow.gravatar_url}}" height="40px"/> <a href="/users/{{dataRow.id}}">{{dataRow.name}}</a>'
       },
       {
         'label': 'Joined',

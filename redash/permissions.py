@@ -8,8 +8,6 @@ not_view_only = False
 
 
 def has_access(object_groups, user, need_view_only):
-    assert need_view_only in [view_only, not_view_only]
-
     if 'admin' in user.permissions:
         return True
 
