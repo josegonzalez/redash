@@ -390,8 +390,8 @@ class TestQueryAll(BaseTestCase):
         group1 = models.Group.create(name="g1", org=ds1.org)
         group2 = models.Group.create(name="g2", org=ds1.org)
 
-        models.DataSourceGroups.create(group=group1, data_source=ds1, permissions=['create', 'view'])
-        models.DataSourceGroups.create(group=group2, data_source=ds2, permissions=['create', 'view'])
+        models.DataSourceGroup.create(group=group1, data_source=ds1, permissions=['create', 'view'])
+        models.DataSourceGroup.create(group=group2, data_source=ds2, permissions=['create', 'view'])
 
         q1 = self.factory.create_query(data_source=ds1)
         q2 = self.factory.create_query(data_source=ds2)

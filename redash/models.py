@@ -12,7 +12,7 @@ import peewee
 from passlib.apps import custom_app_context as pwd_context
 from playhouse.postgres_ext import ArrayField, DateTimeTZField, PostgresqlExtDatabase
 from flask.ext.login import UserMixin, AnonymousUserMixin
-from permissions import has_access
+from permissions import has_access, view_only
 
 from redash import utils, settings, redis_connection
 from redash.query_runner import get_query_runner
@@ -167,7 +167,7 @@ class Organization(ModelTimestampsMixin, BaseModel):
         return self.groups.where(Group.name=='default').first()
 
 
-class Group(BaseModel):
+class Group(BaseModel, BelongsToOrgMixin):
     DEFAULT_PERMISSIONS = ['create_dashboard', 'create_query', 'edit_dashboard', 'edit_query',
                            'view_query', 'view_source', 'execute_query', 'list_users', 'schedule_query']
 
@@ -187,6 +187,14 @@ class Group(BaseModel):
             'permissions': self.permissions,
             'created_at': self.created_at
         }
+
+    @classmethod
+    def all(cls, org):
+        return cls.select().where(cls.org==org)
+
+    @classmethod
+    def members(cls, group_id):
+        return User.select().where(peewee.SQL("%s = ANY(groups)", group_id))
 
     def __unicode__(self):
         return unicode(self.id)
@@ -267,7 +275,7 @@ class User(ModelTimestampsMixin, BaseModel, BelongsToOrgMixin, UserMixin, Permis
         return self.password_hash and pwd_context.verify(password, self.password_hash)
 
 
-class DataSource(BaseModel, BelongsToOrgMixin):
+class DataSource(BelongsToOrgMixin, BaseModel):
     SECRET_PLACEHOLDER = '--------'
 
     id = peewee.PrimaryKeyField()
@@ -282,7 +290,7 @@ class DataSource(BaseModel, BelongsToOrgMixin):
     class Meta:
         db_table = 'data_sources'
 
-    def to_dict(self, all=False):
+    def to_dict(self, all=False, with_permissions=False):
         d = {
             'id': self.id,
             'name': self.name,
@@ -295,6 +303,9 @@ class DataSource(BaseModel, BelongsToOrgMixin):
             d['queue_name'] = self.queue_name
             d['scheduled_queue_name'] = self.scheduled_queue_name
             d['groups'] = self.groups
+
+        if with_permissions:
+            d['view_only'] = self.data_source_groups.view_only
 
         return d
 
@@ -335,6 +346,19 @@ class DataSource(BaseModel, BelongsToOrgMixin):
 
         return schema
 
+    def add_group(self, group):
+        dsg = DataSourceGroup.create(group=group, data_source=self, view_only=False)
+        setattr(self, 'data_source_groups', dsg)
+
+    def remove_group(self, group):
+        DataSourceGroup.delete().where(DataSourceGroup.group==group, DataSourceGroup.data_source==self).execute()
+
+    def update_group_permission(self, group, view_only):
+        dsg = DataSourceGroup.get(DataSourceGroup.group==group, DataSourceGroup.data_source==self)
+        dsg.view_only = view_only
+        dsg.save()
+        setattr(self, 'data_source_groups', dsg)
+
     @property
     def query_runner(self):
         return get_query_runner(self.type, self.options)
@@ -345,14 +369,14 @@ class DataSource(BaseModel, BelongsToOrgMixin):
 
     @property
     def groups(self):
-        groups = DataSourceGroups.select().where(DataSourceGroups.data_source==self)
-        return dict(map(lambda g: (g.group_id, g.permissions), groups))
+        groups = DataSourceGroup.select().where(DataSourceGroup.data_source==self)
+        return dict(map(lambda g: (g.group_id, g.view_only), groups))
 
 
-class DataSourceGroups(BaseModel):
+class DataSourceGroup(BaseModel):
     data_source = peewee.ForeignKeyField(DataSource)
     group = peewee.ForeignKeyField(Group)
-    permissions = ArrayField(peewee.CharField)
+    view_only = peewee.BooleanField(default=False)
 
     class Meta:
         db_table = "data_source_groups"
@@ -521,9 +545,9 @@ class Query(ModelTimestampsMixin, BaseModel):
         q = Query.select(Query, User, QueryResult.retrieved_at, QueryResult.runtime)\
             .join(QueryResult, join_type=peewee.JOIN_LEFT_OUTER)\
             .switch(Query).join(User)\
-            .join(DataSourceGroups, on=(Query.data_source==DataSourceGroups.data_source))\
+            .join(DataSourceGroup, on=(Query.data_source==DataSourceGroup.data_source))\
             .where(Query.is_archived==False)\
-            .where(DataSourceGroups.group << groups)\
+            .where(DataSourceGroup.group << groups)\
             .group_by(Query.id, User.id, QueryResult.id, QueryResult.retrieved_at, QueryResult.runtime)\
             .order_by(cls.created_at.desc())
 
@@ -557,9 +581,9 @@ class Query(ModelTimestampsMixin, BaseModel):
         where &= cls.is_archived == False
 
         return cls.select()\
-                  .join(DataSourceGroups, on=(Query.data_source==DataSourceGroups.data_source)) \
+                  .join(DataSourceGroup, on=(Query.data_source==DataSourceGroup.data_source)) \
                   .where(where) \
-                  .where(DataSourceGroups.group << groups)\
+                  .where(DataSourceGroup.group << groups)\
                   .order_by(cls.created_at.desc())
 
     @classmethod
@@ -567,11 +591,11 @@ class Query(ModelTimestampsMixin, BaseModel):
         # TODO: instead of t2 here, we should define table_alias for Query table
         query = cls.select().where(Event.created_at > peewee.SQL("current_date - 7")).\
             join(Event, on=(Query.id == peewee.SQL("t2.object_id::integer"))). \
-            join(DataSourceGroups, on=(Query.data_source==DataSourceGroups.data_source)). \
+            join(DataSourceGroup, on=(Query.data_source==DataSourceGroup.data_source)). \
             where(Event.action << ('edit', 'execute', 'edit_name', 'edit_description', 'view_source')).\
             where(~(Event.object_id >> None)).\
             where(Event.object_type == 'query'). \
-            where(DataSourceGroups.group << groups).\
+            where(DataSourceGroup.group << groups).\
             where(cls.is_archived == False).\
             group_by(Event.object_id, Query.id).\
             order_by(peewee.SQL("count(0) desc"))
@@ -651,8 +675,8 @@ class Alert(ModelTimestampsMixin, BaseModel):
     def all(cls, groups):
         return cls.select(Alert, User, Query)\
             .join(Query)\
-            .join(DataSourceGroups, on=(Query.data_source==DataSourceGroups.data_source))\
-            .where(DataSourceGroups.group << groups)\
+            .join(DataSourceGroup, on=(Query.data_source==DataSourceGroup.data_source))\
+            .where(DataSourceGroup.group << groups)\
             .switch(Alert)\
             .join(User)
 
@@ -754,7 +778,7 @@ class Dashboard(ModelTimestampsMixin, BaseModel, BelongsToOrgMixin):
             for w in widget_list:
                 if w.visualization_id is None:
                     widgets[w.id] = w.to_dict()
-                elif user and has_access(w.visualization.query.groups, user, 'view'):
+                elif user and has_access(w.visualization.query.groups, user, view_only):
                     widgets[w.id] = w.to_dict()
                 else:
                     widgets[w.id] = project(w.to_dict(),
@@ -941,7 +965,7 @@ class Event(BaseModel):
         return event
 
 
-all_models = (Organization, Group, DataSource, DataSourceGroups, User, QueryResult, Query, Alert, AlertSubscription, Dashboard, Visualization, Widget, Event)
+all_models = (Organization, Group, DataSource, DataSourceGroup, User, QueryResult, Query, Alert, AlertSubscription, Dashboard, Visualization, Widget, Event)
 
 
 def init_db():

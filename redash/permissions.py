@@ -1,10 +1,15 @@
 import functools
 from flask.ext.login import current_user
 from flask.ext.restful import abort
-from funcy import distinct, flatten
+from funcy import any, flatten
+
+view_only = True
+not_view_only = False
 
 
-def has_access(object_groups, user, required_permission):
+def has_access(object_groups, user, need_view_only):
+    assert need_view_only in [view_only, not_view_only]
+
     if 'admin' in user.permissions:
         return True
 
@@ -13,15 +18,14 @@ def has_access(object_groups, user, required_permission):
     if not matching_groups:
         return False
 
-    permissions = distinct(flatten([object_groups[group] for group in matching_groups]))
-    if required_permission not in permissions:
-        return False
+    required_level = 1 if need_view_only else 2
+    group_level = 1 if any(flatten([object_groups[group] for group in matching_groups])) else 2
 
-    return True
+    return required_level <= group_level
 
 
-def require_access(object_groups, user, required_permission):
-    if not has_access(object_groups, user, required_permission):
+def require_access(object_groups, user, need_view_only):
+    if not has_access(object_groups, user, need_view_only):
         abort(403)
 
 

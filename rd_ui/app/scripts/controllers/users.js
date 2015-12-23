@@ -1,4 +1,110 @@
 (function () {
+  var GroupsCtrl = function ($scope, $location, growl, Events, Group) {
+    Events.record(currentUser, "view", "page", "groups");
+    $scope.$parent.pageTitle = "Groups";
+
+    $scope.gridConfig = {
+      isPaginationEnabled: true,
+      itemsByPage: 50,
+      maxSize: 8,
+    };
+
+    $scope.gridColumns = [
+      {
+        "label": "Name",
+        "map": "name",
+        "cellTemplate": '<a href="/groups/{{dataRow.id}}">{{dataRow.name}}</a>'
+      }
+    ];
+
+    $scope.groups = [];
+    Group.query(function(groups) {
+      $scope.groups = groups;
+    });
+  };
+
+  var GroupDataSourcesCtrl = function($scope, $routeParams, $http, growl, Events, Group, DataSource) {
+    Events.record(currentUser, "view", "group_data_sources", $scope.groupId);
+    $scope.group = Group.get({id: $routeParams.groupId});
+    $scope.dataSources = Group.dataSources({id: $routeParams.groupId});
+    $scope.newDataSource = {};
+
+    $scope.findDataSource = function(search) {
+      //if (search == "") {
+      //  return;
+      //}
+
+      if ($scope.foundDataSources === undefined) {
+        DataSource.query(function(dataSources) {
+          var existingIds = _.map($scope.dataSources, function(m) { return m.id; });
+          $scope.foundDataSources = _.filter(dataSources, function(ds) { return !_.contains(existingIds, ds.id); });
+        });
+      }
+    };
+
+    $scope.addDataSource = function(dataSource) {
+      // Clear selection, to clear up the input control.
+      $scope.newDataSource.selected = undefined;
+
+      //$http.post('/api/groups/' + $routeParams.groupId + '/members', {'user_id': user.id}).success(function(user) {
+          dataSource.view_only = false;
+          $scope.dataSources.unshift(dataSource);
+      //});
+
+      // update founder users
+    };
+
+    $scope.changePermission = function(dataSource, viewOnly) {
+      $http.post('/api/groups/' + $routeParams.groupId + '/data_sources/' + dataSource.id, {view_only: viewOnly}).success(function() {
+        dataSource.view_only = viewOnly;
+      });
+    };
+
+    $scope.removeDataSource = function(dataSource) {
+      $http.delete('/api/groups/' + $routeParams.groupId + '/data_sources/' + dataSource.id).success(function() {
+        $scope.dataSources = _.filter($scope.dataSources, function(ds) { return dataSource != ds; });
+      });
+    };
+  }
+
+  var GroupCtrl = function($scope, $routeParams, $http, growl, Events, Group, User) {
+    Events.record(currentUser, "view", "group", $scope.groupId);
+    $scope.group = Group.get({id: $routeParams.groupId});
+    $scope.members = Group.members({id: $routeParams.groupId});
+    $scope.newMember = {};
+
+    $scope.findUser = function(search) {
+      if (search == "") {
+        return;
+      }
+
+      if ($scope.foundUsers === undefined) {
+        User.query(function(users) {
+          var existingIds = _.map($scope.members, function(m) { return m.id; });
+          _.each(users, function(user) { user.alreadyMember = _.contains(existingIds, user.id); });
+          $scope.foundUsers = users;
+        });
+      }
+    };
+
+    $scope.addMember = function(user) {
+      // Clear selection, to clear up the input control.
+      $scope.newMember.selected = undefined;
+
+      $http.post('/api/groups/' + $routeParams.groupId + '/members', {'user_id': user.id}).success(function(user) {
+        $scope.members.unshift(user);
+      });
+
+      // update founder users
+    };
+
+    $scope.removeMember = function(member) {
+      $http.delete('/api/groups/' + $routeParams.groupId + '/members/' + member.id).success(function() {
+        $scope.members = _.filter($scope.members, function(m) {  return m != member });
+      });
+    };
+  }
+
   var UsersCtrl = function ($scope, $location, growl, Events, User) {
     Events.record(currentUser, "view", "page", "users");
     $scope.$parent.pageTitle = "Users";
@@ -154,6 +260,9 @@
   };
 
   angular.module('redash.controllers')
+    .controller('GroupsCtrl', ['$scope', '$location', 'growl', 'Events', 'Group', GroupsCtrl])
+    .controller('GroupCtrl', ['$scope', '$routeParams', '$http', 'growl', 'Events', 'Group', 'User', GroupCtrl])
+    .controller('GroupDataSourcesCtrl', ['$scope', '$routeParams', '$http', 'growl', 'Events', 'Group', 'DataSource', GroupDataSourcesCtrl])
     .controller('UsersCtrl', ['$scope', '$location', 'growl', 'Events', 'User', UsersCtrl])
     .controller('UserCtrl', ['$scope', '$routeParams', '$http', '$location', 'growl', 'Events', 'User', UserCtrl])
     .controller('NewUserCtrl', ['$scope', '$location', 'growl', 'Events', 'User', NewUserCtrl])

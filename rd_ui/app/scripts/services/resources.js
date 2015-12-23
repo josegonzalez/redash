@@ -578,6 +578,17 @@
     return UserResource;
   };
 
+  var Group = function ($resource) {
+    var actions = {
+      'get': {'method': 'GET', 'cache': false, 'isArray': false},
+      'query': {'method': 'GET', 'cache': false, 'isArray': true},
+      'members': {'method': 'GET', 'cache': true, 'isArray': true, 'url': '/api/groups/:id/members'},
+      'dataSources': {'method': 'GET', 'cache': true, 'isArray': true, 'url': '/api/groups/:id/data_sources'}
+    };
+    var resource = $resource('/api/groups/:id', {id: '@id'}, actions);
+    return resource;
+  };
+
   var AlertSubscription = function ($resource) {
     var resource = $resource('/api/alerts/:alertId/subscriptions/:userId', {alertId: '@alert_id', userId: '@user.id'});
     return resource;
@@ -631,5 +642,6 @@
       .factory('Alert', ['$resource', '$http', Alert])
       .factory('AlertSubscription', ['$resource', AlertSubscription])
       .factory('Widget', ['$resource', 'Query', Widget])
-      .factory('User', ['$resource', '$http', User]);
+      .factory('User', ['$resource', '$http', User])
+      .factory('Group', ['$resource', Group]);
 })();

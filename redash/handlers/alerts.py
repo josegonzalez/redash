@@ -6,14 +6,14 @@ from funcy import project
 from redash import models
 from redash.wsgi import api
 from redash.tasks import record_event
-from redash.permissions import require_access, require_admin_or_owner
+from redash.permissions import require_access, require_admin_or_owner, view_only
 from redash.handlers.base import BaseResource, require_fields
 
 
 class AlertAPI(BaseResource):
     def get(self, alert_id):
         alert = models.Alert.get_by_id(alert_id)
-        require_access(alert.groups, self.current_user, 'view')
+        require_access(alert.groups, self.current_user, view_only)
         return alert.to_dict()
 
     def post(self, alert_id):
@@ -44,7 +44,7 @@ class AlertListAPI(BaseResource):
         require_fields(req, ('options', 'name', 'query_id'))
 
         query = models.Query.get_by_id(req['query_id'])
-        require_access(query.groups, self.current_user, 'view')
+        require_access(query.groups, self.current_user, view_only)
 
         alert = models.Alert.create(
             name=req['name'],
@@ -81,7 +81,7 @@ class AlertListAPI(BaseResource):
 class AlertSubscriptionListResource(BaseResource):
     def post(self, alert_id):
         alert = models.Alert.get_by_id(alert_id)
-        require_access(alert.groups, self.current_user, 'view')
+        require_access(alert.groups, self.current_user, view_only)
 
         subscription = models.AlertSubscription.create(alert=alert_id, user=self.current_user)
         record_event.delay({
@@ -96,7 +96,7 @@ class AlertSubscriptionListResource(BaseResource):
 
     def get(self, alert_id):
         alert = models.Alert.get_by_id(alert_id)
-        require_access(alert.groups, self.current_user, 'view')
+        require_access(alert.groups, self.current_user, view_only)
 
         subscriptions = models.AlertSubscription.all(alert_id)
         return [s.to_dict() for s in subscriptions]

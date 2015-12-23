@@ -9,7 +9,7 @@ from flask.ext.restful import abort
 from redash import models, settings, utils
 from redash.wsgi import api
 from redash.tasks import QueryTask, record_event
-from redash.permissions import require_permission, require_access
+from redash.permissions import require_permission, require_access, not_view_only
 from redash.handlers.base import BaseResource
 
 
@@ -19,8 +19,7 @@ class QueryResultListAPI(BaseResource):
         params = request.get_json(force=True)
         data_source = models.DataSource.get_by_id(params.get('data_source_id'))
 
-        # We assert for "view" permission and not "create" to allow refreshing existing queries.
-        require_access(data_source.groups, self.current_user, 'view')
+        require_access(data_source.groups, self.current_user, not_view_only)
 
         record_event.delay({
             'user_id': self.current_user.id,

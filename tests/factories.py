@@ -98,7 +98,7 @@ class Factory(object):
         self.org, self.admin_group, self.default_group = redash.models.init_db()
         self.data_source = data_source_factory.create(org=self.org)
         self.user = self.create_user()
-        redash.models.DataSourceGroups.create(group=self.default_group, data_source=self.data_source,
+        redash.models.DataSourceGroup.create(group=self.default_group, data_source=self.data_source,
                                               permissions=['view', 'create'])
 
     def create_user(self, **kwargs):
@@ -147,7 +147,7 @@ class Factory(object):
         if 'group' in kwargs:
             permissions = kwargs.pop('permissions', ['create', 'view'])
 
-            redash.models.DataSourceGroups.create(group=kwargs['group'],
+            redash.models.DataSourceGroup.create(group=kwargs['group'],
                                                   data_source=data_source,
                                                   permissions=permissions)
 

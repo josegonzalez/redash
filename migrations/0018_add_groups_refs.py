@@ -1,5 +1,5 @@
 from collections import defaultdict
-from redash.models import db, DataSourceGroups, DataSource, Group, Organization, User
+from redash.models import db, DataSourceGroup, DataSource, Group, Organization, User
 from playhouse.migrate import PostgresqlMigrator, migrate
 import peewee
 
@@ -7,14 +7,13 @@ if __name__ == '__main__':
     migrator = PostgresqlMigrator(db.database)
 
     with db.database.transaction():
-        DataSourceGroups.create_table()
+        DataSourceGroup.create_table()
 
         # add default to existing data source:
         default_org = Organization.get_by_id(1)
         default_group = Group.get(Group.name=="default")
-        permissions = ["view", "create"]
         for ds in DataSource.all(default_org):
-            DataSourceGroups.create(data_source=ds, group=default_group, permissions=permissions)
+            DataSourceGroup.create(data_source=ds, group=default_group)
 
         # change the groups list on a user object to be an ids list
         migrate(
