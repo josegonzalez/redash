@@ -2,12 +2,14 @@ import json
 
 from flask import make_response, request
 from flask.ext.restful import abort
+from funcy import project
 
 from redash import models
 from redash.wsgi import api
 from redash.permissions import require_permission
 from redash.query_runner import query_runners, validate_configuration
 from redash.handlers.base import BaseResource
+from settings import parse_boolean
 
 
 class DataSourceTypeListAPI(BaseResource):
@@ -51,8 +53,18 @@ class DataSourceAPI(BaseResource):
 
 class DataSourceListAPI(BaseResource):
     def get(self):
-        data_sources = [ds.to_dict() for ds in models.DataSource.all(self.current_org)]
-        return data_sources
+        if self.current_user.has_permission('admin'):
+            data_sources = models.DataSource.all(self.current_org)
+        else:
+            data_sources = models.DataSource.all(self.current_org, groups=self.current_user.groups)
+
+        response = []
+        for ds in data_sources:
+            d = ds.to_dict()
+            d['view_only'] = all(project(ds.groups, self.current_user.groups).values())
+            response.append(d)
+
+        return response
 
     @require_permission("admin")
     def post(self):

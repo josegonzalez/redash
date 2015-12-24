@@ -1,3 +1,4 @@
+import time
 from flask import request
 from flask.ext.restful import abort
 from redash import models
@@ -12,6 +13,14 @@ class GroupListResource(BaseResource):
     def post(self):
         name = request.json['name']
         group = models.Group.create(name=name, org=self.current_org)
+
+        record_event.delay({
+            'user_id': self.current_user.id,
+            'action': 'create',
+            'timestamp': int(time.time()),
+            'object_id': group.id,
+            'object_type': 'group'
+        })
 
         return group.to_dict()
 
@@ -30,6 +39,14 @@ class GroupResource(BaseResource):
         group = models.Group.get_by_id_and_org(group_id, self.current_org)
         group.name = request.json['name']
         group.save()
+
+        record_event.delay({
+            'user_id': self.current_user.id,
+            'action': 'edit',
+            'timestamp': int(time.time()),
+            'object_id': group.id,
+            'object_type': 'group'
+        })
 
         return group.to_dict()
 
@@ -51,6 +68,15 @@ class GroupMemberListResource(BaseResource):
         user.groups.append(group.id)
         user.save()
 
+        record_event.delay({
+            'user_id': self.current_user.id,
+            'action': 'add_member',
+            'timestamp': int(time.time()),
+            'object_id': group.id,
+            'object_type': 'group',
+            'member_id': user.id
+        })
+
         return user.to_dict()
 
     def get(self, group_id):
@@ -68,6 +94,15 @@ class GroupMemberResource(BaseResource):
         user.groups.remove(int(group_id))
         user.save()
 
+        record_event.delay({
+            'user_id': self.current_user.id,
+            'action': 'remove_member',
+            'timestamp': int(time.time()),
+            'object_id': group_id,
+            'object_type': 'group',
+            'member_id': user.id
+        })
+
 
 class GroupDataSourceListResource(BaseResource):
     @require_permission('admin')
@@ -77,6 +112,15 @@ class GroupDataSourceListResource(BaseResource):
         group = models.Group.get_by_id_and_org(group_id, self.current_org)
 
         data_source.add_group(group)
+
+        record_event.delay({
+            'user_id': self.current_user.id,
+            'action': 'add_data_source',
+            'timestamp': int(time.time()),
+            'object_id': group_id,
+            'object_type': 'group',
+            'member_id': data_source.id
+        })
 
         return data_source.to_dict(with_permissions=True)
 
@@ -100,6 +144,16 @@ class GroupDataSourceResource(BaseResource):
 
         data_source.update_group_permission(group, view_only)
 
+        record_event.delay({
+            'user_id': self.current_user.id,
+            'action': 'change_data_source_permission',
+            'timestamp': int(time.time()),
+            'object_id': group_id,
+            'object_type': 'group',
+            'member_id': data_source.id,
+            'view_only': view_only
+        })
+
         return data_source.to_dict(with_permissions=True)
 
     @require_permission('admin')
@@ -108,6 +162,15 @@ class GroupDataSourceResource(BaseResource):
         group = models.Group.get_by_id_and_org(group_id, self.current_org)
 
         data_source.remove_group(group)
+
+        record_event.delay({
+            'user_id': self.current_user.id,
+            'action': 'remove_data_source',
+            'timestamp': int(time.time()),
+            'object_id': group_id,
+            'object_type': 'group',
+            'member_id': data_source.id
+        })
 
 
 api.add_resource(GroupListResource, '/api/groups', endpoint='groups')

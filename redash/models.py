@@ -138,8 +138,9 @@ class AnonymousUser(AnonymousUserMixin, PermissionsCheckMixin):
 
 
 class ApiUser(UserMixin, PermissionsCheckMixin):
-    def __init__(self, api_key):
+    def __init__(self, api_key, groups):
         self.id = api_key
+        self.groups = groups
 
     def __repr__(self):
         return u"<ApiUser: {}>".format(self.id)
@@ -364,8 +365,13 @@ class DataSource(BelongsToOrgMixin, BaseModel):
         return get_query_runner(self.type, self.options)
 
     @classmethod
-    def all(cls, org):
-        return cls.select().where(cls.org==org).order_by(cls.id.asc())
+    def all(cls, org, groups=None):
+        data_sources = cls.select().where(cls.org==org).order_by(cls.id.asc())
+
+        if groups:
+            data_sources = data_sources.join(DataSourceGroup).where(DataSourceGroup.group << groups)
+
+        return data_sources
 
     @property
     def groups(self):
@@ -375,7 +381,7 @@ class DataSource(BelongsToOrgMixin, BaseModel):
 
 class DataSourceGroup(BaseModel):
     data_source = peewee.ForeignKeyField(DataSource)
-    group = peewee.ForeignKeyField(Group)
+    group = peewee.ForeignKeyField(Group, related_name="data_sources")
     view_only = peewee.BooleanField(default=False)
 
     class Meta:

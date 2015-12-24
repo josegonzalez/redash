@@ -11,11 +11,11 @@
         <div class="col-lg-4">
             <ul class="nav nav-pills">
                 <li role="presentation" class="active"><a href="/groups/{{group.id}}">Members</a></li>
-                <li role="presentation"><a href="/groups/{{group.id}}/data_sources">Data Sources</a></li>
+                <li role="presentation" ng-if="currentUser.isAdmin"><a href="/groups/{{group.id}}/data_sources">Data Sources</a></li>
             </ul>
         </div>
 
-        <div class="col-lg-8">
+        <div class="col-lg-8" ng-if="currentUser.isAdmin">
             <ui-select ng-model="newMember.selected" on-select="addMember($item)">
                 <ui-select-match placeholder="Add New Member"></ui-select-match>
                 <ui-select-choices repeat="user in foundUsers | filter:$select.search"
@@ -37,7 +37,7 @@
                 <tbody>
                     <tr ng-repeat="member in members">
                         <td width="50px"><img src="{{member.gravatar_url}}" height="40px"/></td>
-                        <td>{{member.name}} <button class="pull-right btn btn-sm btn-danger" ng-click="removeMember(member)">Remove</button></td>
+                        <td>{{member.name}} <button class="pull-right btn btn-sm btn-danger" ng-click="removeMember(member)" ng-if="currentUser.isAdmin">Remove</button></td>
                     </tr>
                 </tbody>
             </table>

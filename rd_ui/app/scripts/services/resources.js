@@ -401,6 +401,10 @@
         if ('job' in response) {
           refreshStatus(queryResult, query);
         }
+      }, function(error) {
+        if (error.status === 403) {
+          queryResult.update(error.data);
+        }
       });
 
       return queryResult;

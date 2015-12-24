@@ -2,6 +2,7 @@
   'use strict';
 
   function QueryViewCtrl($scope, Events, $route, $location, notifications, growl, $modal, Query, DataSource) {
+
     var DEFAULT_TAB = 'table';
 
     $scope.base_url = $location.protocol()+"://"+$location.host()+":"+$location.port();
@@ -81,6 +82,8 @@
         $scope.query.data_source_id = getDataSourceId();
         $scope.dataSource = _.find(dataSources, function(ds) { return ds.id == $scope.query.data_source_id; });
       }
+
+      $scope.canExecuteQuery = $scope.canExecuteQuery && _.some(dataSources, function(ds) { return !ds.view_only });
     });
 
     // in view mode, latest dataset is always visible
