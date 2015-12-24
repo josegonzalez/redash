@@ -89,7 +89,7 @@ def init_admin(app):
     admin.add_view(DashboardModelView(models.Dashboard))
     logout_link = MenuLink('Logout', '/logout', 'logout')
 
-    for m in (models.Visualization, models.Widget, models.Group, models.Event, models.Organization):
+    for m in (models.Visualization, models.Widget, models.Event, models.Organization):
         admin.add_view(BaseModelView(m))
 
     admin.add_link(logout_link)
