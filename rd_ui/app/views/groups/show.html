@@ -4,7 +4,9 @@
         <li role="presentation" class="active"><a href="/groups">Groups</a></li>
     </ul>
 
-    <h2>{{group.name}}</h2>
+    <h2>
+        <edit-in-place editable="true" done="saveName" ignore-blanks='true' value="group.name"></edit-in-place>
+    </h2>
     <div class="row">
         <div class="col-lg-4">
             <ul class="nav nav-pills">

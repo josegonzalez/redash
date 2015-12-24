@@ -1,5 +1,4 @@
 from flask import request
-from flask.ext.restful import abort
 
 from funcy import distinct, take
 from itertools import chain

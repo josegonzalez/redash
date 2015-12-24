@@ -3,12 +3,18 @@ from flask.ext.restful import abort
 from redash import models
 from redash.wsgi import api
 from redash.tasks import record_event
-from redash.permissions import require_permission, require_admin_or_owner, is_admin_or_owner, \
-    require_permission_or_owner
+from redash.permissions import require_permission, require_admin_or_owner, is_admin_or_owner
 from redash.handlers.base import BaseResource, require_fields, get_object_or_404
 
 
 class GroupListResource(BaseResource):
+    @require_permission('admin')
+    def post(self):
+        name = request.json['name']
+        group = models.Group.create(name=name, org=self.current_org)
+
+        return group.to_dict()
+
     def get(self):
         if self.current_user.has_permission('admin'):
             groups = models.Group.all(self.current_org)
@@ -19,6 +25,14 @@ class GroupListResource(BaseResource):
 
 
 class GroupResource(BaseResource):
+    @require_permission('admin')
+    def post(self, group_id):
+        group = models.Group.get_by_id_and_org(group_id, self.current_org)
+        group.name = request.json['name']
+        group.save()
+
+        return group.to_dict()
+
     def get(self, group_id):
         if not (self.current_user.has_permission('admin') or int(group_id) in self.current_user.groups):
             abort(403)

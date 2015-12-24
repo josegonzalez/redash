@@ -1,11 +1,11 @@
 (function () {
-  var GroupsCtrl = function ($scope, $location, growl, Events, Group) {
+  var GroupsCtrl = function ($scope, $location, $modal, growl, Events, Group) {
     Events.record(currentUser, "view", "page", "groups");
     $scope.$parent.pageTitle = "Groups";
 
     $scope.gridConfig = {
       isPaginationEnabled: true,
-      itemsByPage: 50,
+      itemsByPage: 20,
       maxSize: 8,
     };
 
@@ -21,6 +21,43 @@
     Group.query(function(groups) {
       $scope.groups = groups;
     });
+
+    $scope.newGroup = function() {
+      $modal.open({
+        templateUrl: '/views/groups/edit_group_form.html',
+        size: 'sm',
+        resolve: {
+          group: function() { return new Group({}); }
+        },
+        controller: ['$scope', '$modalInstance', 'group', function($scope, $modalInstance, group) {
+          $scope.group = group;
+          var newGroup = group.id === undefined;
+
+          if (newGroup) {
+            $scope.saveButtonText = "Create";
+            $scope.title = "Create a New Group";
+          } else {
+            $scope.saveButtonText = "Save";
+            $scope.title = "Edit Group";
+          }
+
+          $scope.ok = function() {
+            $scope.group.$save(function(group) {
+              if (newGroup) {
+                $location.path('/groups/' + group.id).replace();
+                $modalInstance.close();
+              } else {
+                $modalInstance.close();
+              }
+            });
+          }
+
+          $scope.cancel = function() {
+            $modalInstance.close();
+          }
+        }]
+      });
+    }
   };
 
   var GroupDataSourcesCtrl = function($scope, $routeParams, $http, growl, Events, Group, DataSource) {
@@ -29,11 +66,11 @@
     $scope.dataSources = Group.dataSources({id: $routeParams.groupId});
     $scope.newDataSource = {};
 
-    $scope.findDataSource = function(search) {
-      //if (search == "") {
-      //  return;
-      //}
+    $scope.saveName = function() {
+      $scope.group.$save();
+    };
 
+    $scope.findDataSource = function(search) {
       if ($scope.foundDataSources === undefined) {
         DataSource.query(function(dataSources) {
           var existingIds = _.map($scope.dataSources, function(m) { return m.id; });
@@ -46,12 +83,14 @@
       // Clear selection, to clear up the input control.
       $scope.newDataSource.selected = undefined;
 
-      //$http.post('/api/groups/' + $routeParams.groupId + '/members', {'user_id': user.id}).success(function(user) {
-          dataSource.view_only = false;
-          $scope.dataSources.unshift(dataSource);
-      //});
+      $http.post('/api/groups/' + $routeParams.groupId + '/data_sources', {'data_source_id': dataSource.id}).success(function(user) {
+        dataSource.view_only = false;
+        $scope.dataSources.unshift(dataSource);
 
-      // update founder users
+        if ($scope.foundDataSources) {
+          $scope.foundDataSources = _.filter($scope.foundDataSources, function(ds) { return ds != dataSource; });
+        }
+      });
     };
 
     $scope.changePermission = function(dataSource, viewOnly) {
@@ -73,6 +112,10 @@
     $scope.members = Group.members({id: $routeParams.groupId});
     $scope.newMember = {};
 
+    $scope.saveName = function() {
+      $scope.group.$save();
+    };
+
     $scope.findUser = function(search) {
       if (search == "") {
         return;
@@ -91,16 +134,19 @@
       // Clear selection, to clear up the input control.
       $scope.newMember.selected = undefined;
 
-      $http.post('/api/groups/' + $routeParams.groupId + '/members', {'user_id': user.id}).success(function(user) {
+      $http.post('/api/groups/' + $routeParams.groupId + '/members', {'user_id': user.id}).success(function() {
         $scope.members.unshift(user);
+        user.alreadyMember = true;
       });
-
-      // update founder users
     };
 
     $scope.removeMember = function(member) {
       $http.delete('/api/groups/' + $routeParams.groupId + '/members/' + member.id).success(function() {
         $scope.members = _.filter($scope.members, function(m) {  return m != member });
+
+        if ($scope.foundUsers) {
+          _.each($scope.foundUsers, function(user) { if (user.id == member.id) { user.alreadyMember = false }; });
+        }
       });
     };
   }
@@ -255,7 +301,7 @@
   };
 
   angular.module('redash.controllers')
-    .controller('GroupsCtrl', ['$scope', '$location', 'growl', 'Events', 'Group', GroupsCtrl])
+    .controller('GroupsCtrl', ['$scope', '$location', '$modal', 'growl', 'Events', 'Group', GroupsCtrl])
     .controller('GroupCtrl', ['$scope', '$routeParams', '$http', 'growl', 'Events', 'Group', 'User', GroupCtrl])
     .controller('GroupDataSourcesCtrl', ['$scope', '$routeParams', '$http', 'growl', 'Events', 'Group', 'DataSource', GroupDataSourcesCtrl])
     .controller('UsersCtrl', ['$scope', '$location', 'growl', 'Events', 'User', UsersCtrl])
