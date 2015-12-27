@@ -8,14 +8,12 @@ from flask.ext.script import Manager
 
 from redash import settings, models, __version__
 from redash.wsgi import app
-from redash.import_export import import_manager
 from redash.cli import users, database, data_sources
 from redash.monitor import get_status
 
 manager = Manager(app)
 manager.add_command("database", database.manager)
 manager.add_command("users", users.manager)
-manager.add_command("import", import_manager)
 manager.add_command("ds", data_sources.manager)
 
 
