@@ -139,9 +139,10 @@ class AnonymousUser(AnonymousUserMixin, PermissionsCheckMixin):
 
 
 class ApiUser(UserMixin, PermissionsCheckMixin):
-    def __init__(self, api_key, groups):
+    def __init__(self, api_key, org, groups):
         self.id = api_key
         self.groups = groups
+        self.org = org
 
     def __repr__(self):
         return u"<ApiUser: {}>".format(self.id)
