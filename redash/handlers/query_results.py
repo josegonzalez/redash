@@ -17,7 +17,7 @@ class QueryResultListAPI(BaseResource):
     @require_permission('execute_query')
     def post(self):
         params = request.get_json(force=True)
-        data_source = models.DataSource.get_by_id(params.get('data_source_id'))
+        data_source = models.DataSource.get_by_id_and_org(params.get('data_source_id'), self.current_org)
 
         if not has_access(data_source.groups, self.current_user, not_view_only):
             return {'job': {'status': 4, 'error': 'You do not have permission to run queries with this data source.'}}, 403
@@ -77,7 +77,7 @@ class QueryResultAPI(BaseResource):
     def get(self, query_id=None, query_result_id=None, filetype='json'):
         should_cache = query_result_id is not None
         if query_result_id is None and query_id is not None:
-            query = models.Query.get(models.Query.id == query_id)
+            query = models.Query.get_by_id(query_id)
             if query:
                 query_result_id = query._data['latest_query_data']
 

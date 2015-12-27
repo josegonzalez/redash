@@ -684,6 +684,10 @@ class Alert(ModelTimestampsMixin, BaseModel):
             .switch(Alert)\
             .join(User)
 
+    @classmethod
+    def get_by_id_and_org(cls, id, org):
+        return cls.select(Alert, User, Query).join(Query).switch(Alert).join(User).where(cls.id==id, Query.org==org).get()
+
     def to_dict(self, full=True):
         d = {
             'id': self.id,

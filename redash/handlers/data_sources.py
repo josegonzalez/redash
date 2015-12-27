@@ -8,7 +8,7 @@ from redash import models
 from redash.wsgi import api
 from redash.permissions import require_permission
 from redash.query_runner import query_runners, validate_configuration
-from redash.handlers.base import BaseResource
+from redash.handlers.base import BaseResource, get_object_or_404
 from redash.settings import parse_boolean
 
 
@@ -87,7 +87,7 @@ api.add_resource(DataSourceAPI, '/api/data_sources/<data_source_id>', endpoint='
 
 class DataSourceSchemaAPI(BaseResource):
     def get(self, data_source_id):
-        data_source = models.DataSource.get_by_id(data_source_id)
+        data_source = get_object_or_404(models.DataSource.get_by_id_and_org, data_source_id, self.current_org)
         schema = data_source.get_schema()
 
         return schema

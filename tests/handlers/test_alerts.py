@@ -1,4 +1,5 @@
 from tests import BaseTestCase
+from tests.factories import org_factory
 from tests.handlers import authenticated_user, json_request
 from redash.wsgi import app
 
@@ -19,6 +20,16 @@ class TestAlertResourceGet(BaseTestCase):
         with app.test_client() as c, authenticated_user(c, user=self.factory.user):
             rv = json_request(c.get, "/api/alerts/{}".format(alert.id))
             self.assertEqual(rv.status_code, 403)
+
+    def test_returns_403_if_admin_from_another_org(self):
+        second_org = org_factory.create()
+        second_org_admin = self.factory.create_admin(org=second_org)
+
+        alert = self.factory.create_alert()
+
+        with app.test_client() as c, authenticated_user(c, user=second_org_admin):
+            rv = json_request(c.get, "/api/alerts/{}".format(alert.id))
+            self.assertEqual(rv.status_code, 404)
 
 
 class TestAlertListPost(BaseTestCase):

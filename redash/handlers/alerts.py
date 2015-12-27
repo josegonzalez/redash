@@ -7,19 +7,19 @@ from redash import models
 from redash.wsgi import api
 from redash.tasks import record_event
 from redash.permissions import require_access, require_admin_or_owner, view_only
-from redash.handlers.base import BaseResource, require_fields
+from redash.handlers.base import BaseResource, require_fields, get_object_or_404
 
 
 class AlertAPI(BaseResource):
     def get(self, alert_id):
-        alert = models.Alert.get_by_id(alert_id)
+        alert = get_object_or_404(models.Alert.get_by_id_and_org, alert_id, self.current_org)
         require_access(alert.groups, self.current_user, view_only)
         return alert.to_dict()
 
     def post(self, alert_id):
         req = request.get_json(True)
         params = project(req, ('options', 'name', 'query_id', 'rearm'))
-        alert = models.Alert.get_by_id(alert_id)
+        alert = get_object_or_404(models.Alert.get_by_id_and_org, alert_id, self.current_org)
         require_admin_or_owner(alert.user.id)
 
         if 'query_id' in params:
@@ -80,7 +80,7 @@ class AlertListAPI(BaseResource):
 
 class AlertSubscriptionListResource(BaseResource):
     def post(self, alert_id):
-        alert = models.Alert.get_by_id(alert_id)
+        alert = models.Alert.get_by_id_and_org(alert_id, self.current_org)
         require_access(alert.groups, self.current_user, view_only)
 
         subscription = models.AlertSubscription.create(alert=alert_id, user=self.current_user)
@@ -95,7 +95,7 @@ class AlertSubscriptionListResource(BaseResource):
         return subscription.to_dict()
 
     def get(self, alert_id):
-        alert = models.Alert.get_by_id(alert_id)
+        alert = models.Alert.get_by_id_and_org(alert_id, self.current_org)
         require_access(alert.groups, self.current_user, view_only)
 
         subscriptions = models.AlertSubscription.all(alert_id)

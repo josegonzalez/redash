@@ -49,7 +49,7 @@ class WidgetAPI(BaseResource):
         require_admin_or_owner(widget.dashboard.user.id)
         widget.delete_instance()
 
-        return {'layout': widget.dashboard.layout }
+        return {'layout': widget.dashboard.layout}
 
 api.add_resource(WidgetListAPI, '/api/widgets', endpoint='widgets')
 api.add_resource(WidgetAPI, '/api/widgets/<int:widget_id>', endpoint='widget')
