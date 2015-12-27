@@ -58,7 +58,8 @@ angular.module('redash', [
         resolve: {
           'query': ['Query', function newQuery(Query) {
             return Query.newQuery();
-          }]
+          }],
+          'dataSources': ['DataSource', function (DataSource) { return DataSource.query().$promise }]
         }
       });
       $routeProvider.when('/queries/search', {
