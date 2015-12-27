@@ -4,6 +4,7 @@ from flask import url_for
 from flask.ext.login import current_user
 from mock import patch
 from tests import BaseTestCase
+from tests.factories import org_factory
 from tests.handlers import authenticated_user, json_request
 from redash import models, settings
 from redash.wsgi import app
@@ -258,6 +259,35 @@ class QueryAPITest(BaseTestCase, AuthenticationTestMixin):
 
             self.assertEquals(rv.status_code, 200)
             self.assertEquals(len(rv.json), 10)
+
+    def test_query_without_data_source_should_be_available_only_by_admin(self):
+        query = self.factory.create_query()
+        query.data_source = None
+        query.save()
+
+        with app.test_client() as c, authenticated_user(c):
+            rv = json_request(c.get, '/api/queries/{}'.format(query.id))
+            self.assertEquals(rv.status_code, 403)
+
+        with app.test_client() as c, authenticated_user(c, user=self.factory.create_admin()):
+            rv = json_request(c.get, '/api/queries/{}'.format(query.id))
+            self.assertEquals(rv.status_code, 200)
+
+    def test_query_only_accessible_to_users_from_its_organization(self):
+        second_org = org_factory.create()
+        second_org_admin = self.factory.create_admin(org=second_org)
+
+        query = self.factory.create_query()
+        query.data_source = None
+        query.save()
+
+        with app.test_client() as c, authenticated_user(c, user=second_org_admin):
+            rv = json_request(c.get, '/api/queries/{}'.format(query.id))
+            self.assertEquals(rv.status_code, 404)
+
+        with app.test_client() as c, authenticated_user(c, user=self.factory.create_admin()):
+            rv = json_request(c.get, '/api/queries/{}'.format(query.id))
+            self.assertEquals(rv.status_code, 200)
 
 
 class VisualizationAPITest(BaseTestCase):

@@ -95,11 +95,12 @@ class BaseModel(MeteredModel):
             # setattr(model_instance, field_name, field_obj.python_value(value))
             setattr(self, k, v)
 
-        dirty_fields = self.dirty_fields
-        if hasattr(self, 'updated_at'):
-            dirty_fields = dirty_fields + [self.__class__.updated_at]
+        # We have to run pre-save before calculating dirty_fields. We end up running it twice,
+        # but pre_save calls should be very quick so it's not big of an issue.
+        # An alternative can be to recalculate dirty_fields, but it felt more error prone.
+        self.pre_save(False)
 
-        self.save(only=dirty_fields)
+        self.save(only=self.dirty_fields)
 
 
 class ModelTimestampsMixin(BaseModel):
@@ -486,8 +487,9 @@ def should_schedule_next(previous_iteration, now, schedule):
     return now > next_iteration
 
 
-class Query(ModelTimestampsMixin, BaseModel):
+class Query(ModelTimestampsMixin, BaseModel, BelongsToOrgMixin):
     id = peewee.PrimaryKeyField()
+    org = peewee.ForeignKeyField(Organization, related_name="queries")
     data_source = peewee.ForeignKeyField(DataSource, null=True)
     latest_query_data = peewee.ForeignKeyField(QueryResult, null=True)
     name = peewee.CharField(max_length=255)
@@ -613,14 +615,6 @@ class Query(ModelTimestampsMixin, BaseModel):
 
         return query
 
-    @classmethod
-    def update_instance(cls, query_id, **kwargs):
-        if 'query' in kwargs:
-            kwargs['query_hash'] = utils.gen_query_hash(kwargs['query'])
-
-        update = cls.update(**kwargs).where(cls.id == query_id)
-        return update.execute()
-
     def pre_save(self, created):
         super(Query, self).pre_save(created)
         self.query_hash = utils.gen_query_hash(self.query)
@@ -654,6 +648,9 @@ class Query(ModelTimestampsMixin, BaseModel):
 
     @property
     def groups(self):
+        if self.data_source is None:
+            return {}
+
         return self.data_source.groups
 
     def __unicode__(self):

@@ -27,7 +27,7 @@ class QueryTest(BaseTestCase):
         q = self.factory.create_query()
 
         old_hash = q.query_hash
-        models.Query.update_instance(q.id, query="SELECT 2;")
+        q.update_instance(query="SELECT 2;")
 
         q = models.Query.get_by_id(q.id)
 

@@ -9,7 +9,7 @@ from itertools import chain
 from redash import models
 from redash.wsgi import app, api
 from redash.permissions import require_permission, require_access, require_admin_or_owner, not_view_only, view_only
-from redash.handlers.base import BaseResource
+from redash.handlers.base import BaseResource, get_object_or_404
 
 
 @app.route('/api/queries/format', methods=['POST'])
@@ -53,8 +53,8 @@ class QueryListAPI(BaseResource):
 
         query_def['user'] = self.current_user
         query_def['data_source'] = data_source
-        query = models.Query(**query_def)
-        query.save()
+        query_def['org'] = self.current_org
+        query = models.Query.create(**query_def)
 
         return query.to_dict()
 
@@ -66,11 +66,11 @@ class QueryListAPI(BaseResource):
 class QueryAPI(BaseResource):
     @require_permission('edit_query')
     def post(self, query_id):
-        query = models.Query.get_by_id(query_id)
+        query = get_object_or_404(models.Query.get_by_id_and_org, query_id, self.current_org)
         require_admin_or_owner(query.user_id)
 
         query_def = request.get_json(force=True)
-        for field in ['id', 'created_at', 'api_key', 'visualizations', 'latest_query_data', 'user', 'last_modified_by']:
+        for field in ['id', 'created_at', 'api_key', 'visualizations', 'latest_query_data', 'user', 'last_modified_by', 'org']:
             query_def.pop(field, None)
 
         # TODO(@arikfr): after running a query it updates all relevant queries with the new result. So is this really
@@ -83,16 +83,13 @@ class QueryAPI(BaseResource):
 
         query_def['last_modified_by'] = self.current_user
 
-        # TODO: use #save() with #dirty_fields.
-        models.Query.update_instance(query_id, **query_def)
-
-        query = models.Query.get_by_id(query_id)
+        query.update_instance(**query_def)
 
         return query.to_dict(with_visualizations=True)
 
     @require_permission('view_query')
     def get(self, query_id):
-        q = models.Query.get_by_id(query_id)
+        q = get_object_or_404(models.Query.get_by_id_and_org, query_id, self.current_org)
         require_access(q.groups, self.current_user, view_only)
 
         if q:
@@ -102,7 +99,7 @@ class QueryAPI(BaseResource):
 
     # TODO: move to resource of its own? (POST /queries/{id}/archive)
     def delete(self, query_id):
-        query = models.Query.get_by_id(query_id)
+        query = get_object_or_404(models.Query.get_by_id_and_org, query_id, self.current_org)
         require_admin_or_owner(query.user_id)
         query.archive()
 

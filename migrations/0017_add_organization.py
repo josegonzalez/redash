@@ -22,7 +22,6 @@ if __name__ == '__main__':
         Organization.create_table()
 
         default_org = Organization.create(name="Default", settings={}, domain=domain)
-        default_org = Organization.select().first()
 
         column = Group.org
         column.default = default_org
@@ -33,6 +32,7 @@ if __name__ == '__main__':
             migrator.add_column('data_sources', 'org_id', column),
             migrator.add_column('users', 'org_id', column),
             migrator.add_column('dashboards', 'org_id', column),
+            migrator.add_column('queries', 'org_id', column),
         )
 
     db.close_db(None)

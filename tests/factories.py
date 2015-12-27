@@ -43,6 +43,9 @@ user_factory = ModelFactory(redash.models.User,
                             groups=[2],
                             org=1)
 
+org_factory = ModelFactory(redash.models.Organization,
+                           name=Sequence("Org {}"),
+                           settings={})
 
 data_source_factory = ModelFactory(redash.models.DataSource,
                                    name=Sequence('Test {}'),
@@ -50,10 +53,8 @@ data_source_factory = ModelFactory(redash.models.DataSource,
                                    options='{"dbname": "test"}',
                                    org=1)
 
-
 dashboard_factory = ModelFactory(redash.models.Dashboard,
                                  name='test', user=user_factory.create, layout='[]', org=1)
-
 
 query_factory = ModelFactory(redash.models.Query,
                              name='New Query',
@@ -62,7 +63,8 @@ query_factory = ModelFactory(redash.models.Query,
                              user=user_factory.create,
                              is_archived=False,
                              schedule=None,
-                             data_source=data_source_factory.create)
+                             data_source=data_source_factory.create,
+                             org=1)
 
 alert_factory = ModelFactory(redash.models.Alert,
                              name=Sequence('Alert {}'),
@@ -164,7 +166,8 @@ class Factory(object):
     def create_query(self, **kwargs):
         args = {
             'user': self.user,
-            'data_source': self.data_source
+            'data_source': self.data_source,
+            'org': self.org
         }
         args.update(kwargs)
         return query_factory.create(**args)

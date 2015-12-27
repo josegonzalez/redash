@@ -43,7 +43,7 @@ class AlertListAPI(BaseResource):
         req = request.get_json(True)
         require_fields(req, ('options', 'name', 'query_id'))
 
-        query = models.Query.get_by_id(req['query_id'])
+        query = models.Query.get_by_id_and_org(req['query_id'], self.current_org)
         require_access(query.groups, self.current_user, view_only)
 
         alert = models.Alert.create(

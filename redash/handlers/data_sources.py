@@ -9,7 +9,7 @@ from redash.wsgi import api
 from redash.permissions import require_permission
 from redash.query_runner import query_runners, validate_configuration
 from redash.handlers.base import BaseResource
-from settings import parse_boolean
+from redash.settings import parse_boolean
 
 
 class DataSourceTypeListAPI(BaseResource):
