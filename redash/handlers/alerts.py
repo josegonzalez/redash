@@ -10,7 +10,7 @@ from redash.permissions import require_access, require_admin_or_owner, view_only
 from redash.handlers.base import BaseResource, require_fields, get_object_or_404
 
 
-class AlertAPI(BaseResource):
+class AlertResource(BaseResource):
     def get(self, alert_id):
         alert = get_object_or_404(models.Alert.get_by_id_and_org, alert_id, self.current_org)
         require_access(alert.groups, self.current_user, view_only)
@@ -38,7 +38,7 @@ class AlertAPI(BaseResource):
         return alert.to_dict()
 
 
-class AlertListAPI(BaseResource):
+class AlertListResource(BaseResource):
     def post(self):
         req = request.get_json(True)
         require_fields(req, ('options', 'name', 'query_id'))
@@ -105,6 +105,8 @@ class AlertSubscriptionListResource(BaseResource):
 class AlertSubscriptionResource(BaseResource):
     def delete(self, alert_id, subscriber_id):
         models.AlertSubscription.unsubscribe(alert_id, subscriber_id)
+        require_admin_or_owner(subscriber_id)
+
         record_event.delay({
             'user_id': self.current_user.id,
             'action': 'unsubscribe',
@@ -113,7 +115,7 @@ class AlertSubscriptionResource(BaseResource):
             'object_type': 'alert'
         })
 
-api.add_resource(AlertAPI, '/api/alerts/<alert_id>', endpoint='alert')
+api.add_resource(AlertResource, '/api/alerts/<alert_id>', endpoint='alert')
 api.add_resource(AlertSubscriptionListResource, '/api/alerts/<alert_id>/subscriptions', endpoint='alert_subscriptions')
 api.add_resource(AlertSubscriptionResource, '/api/alerts/<alert_id>/subscriptions/<subscriber_id>', endpoint='alert_subscription')
-api.add_resource(AlertListAPI, '/api/alerts', endpoint='alerts')
+api.add_resource(AlertListResource, '/api/alerts', endpoint='alerts')

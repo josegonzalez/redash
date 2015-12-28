@@ -25,6 +25,7 @@ class UserListResource(BaseResource):
 
         user = models.User(org=self.current_org, name=req['name'], email=req['email'])
         user.hash_password(req['password'])
+
         try:
             user.save()
         except IntegrityError as e:

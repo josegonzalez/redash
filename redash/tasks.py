@@ -320,7 +320,7 @@ def execute_query(self, query, data_source_id, metadata):
     redis_connection.delete(QueryTask._job_lock_id(query_hash, data_source.id))
 
     if not error:
-        query_result, updated_query_ids = models.QueryResult.store_result(data_source.id, query_hash, query, data, run_time, utils.utcnow())
+        query_result, updated_query_ids = models.QueryResult.store_result(data_source.org_id, data_source.id, query_hash, query, data, run_time, utils.utcnow())
         for query_id in updated_query_ids:
             check_alerts_for_query.delay(query_id)
     else:

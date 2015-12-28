@@ -232,7 +232,7 @@ class QueryArchiveTest(BaseTestCase):
     def test_archived_query_doesnt_return_in_all(self):
         query = self.factory.create_query(schedule="1")
         yesterday = datetime.datetime.now() - datetime.timedelta(days=1)
-        query_result, _ = models.QueryResult.store_result(query.data_source.id, query.query_hash, query.query, "1",
+        query_result, _ = models.QueryResult.store_result(query.org, query.data_source.id, query.query_hash, query.query, "1",
                                                        123, yesterday)
 
         query.latest_query_data = query_result
@@ -413,7 +413,8 @@ class TestQueryResultStoreResult(BaseTestCase):
         self.data = "data"
 
     def test_stores_the_result(self):
-        query_result, _ = models.QueryResult.store_result(self.data_source.id, self.query_hash, self.query,
+        query_result, _ = models.QueryResult.store_result(self.data_source.org_id, self.data_source.id, self.query_hash,
+                                                          self.query,
                                                           self.data, self.runtime, self.utcnow)
 
         self.assertEqual(query_result.data, self.data)
@@ -428,8 +429,9 @@ class TestQueryResultStoreResult(BaseTestCase):
         query2 = self.factory.create_query(query=self.query)
         query3 = self.factory.create_query(query=self.query)
 
-        query_result, _ = models.QueryResult.store_result(self.data_source.id, self.query_hash, self.query, self.data,
-                                                       self.runtime, self.utcnow)
+        query_result, _ = models.QueryResult.store_result(self.data_source.org_id, self.data_source.id, self.query_hash,
+                                                          self.query, self.data,
+                                                          self.runtime, self.utcnow)
 
         self.assertEqual(models.Query.get_by_id(query1.id)._data['latest_query_data'], query_result.id)
         self.assertEqual(models.Query.get_by_id(query2.id)._data['latest_query_data'], query_result.id)
@@ -440,8 +442,9 @@ class TestQueryResultStoreResult(BaseTestCase):
         query2 = self.factory.create_query(query=self.query)
         query3 = self.factory.create_query(query=self.query + "123")
 
-        query_result, _ = models.QueryResult.store_result(self.data_source.id, self.query_hash, self.query, self.data,
-                                                       self.runtime, self.utcnow)
+        query_result, _ = models.QueryResult.store_result(self.data_source.org_id, self.data_source.id, self.query_hash,
+                                                          self.query, self.data,
+                                                          self.runtime, self.utcnow)
 
         self.assertEqual(models.Query.get_by_id(query1.id)._data['latest_query_data'], query_result.id)
         self.assertEqual(models.Query.get_by_id(query2.id)._data['latest_query_data'], query_result.id)
@@ -452,8 +455,9 @@ class TestQueryResultStoreResult(BaseTestCase):
         query2 = self.factory.create_query(query=self.query)
         query3 = self.factory.create_query(query=self.query, data_source=self.factory.create_data_source())
 
-        query_result, _ = models.QueryResult.store_result(self.data_source.id, self.query_hash, self.query, self.data,
-                                                       self.runtime, self.utcnow)
+        query_result, _ = models.QueryResult.store_result(self.data_source.org_id, self.data_source.id, self.query_hash,
+                                                          self.query, self.data,
+                                                          self.runtime, self.utcnow)
 
         self.assertEqual(models.Query.get_by_id(query1.id)._data['latest_query_data'], query_result.id)
         self.assertEqual(models.Query.get_by_id(query2.id)._data['latest_query_data'], query_result.id)

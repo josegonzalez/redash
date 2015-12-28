@@ -390,8 +390,9 @@ class DataSourceGroup(BaseModel):
         db_table = "data_source_groups"
 
 
-class QueryResult(BaseModel):
+class QueryResult(BaseModel, BelongsToOrgMixin):
     id = peewee.PrimaryKeyField()
+    org = peewee.ForeignKeyField(Organization)
     data_source = peewee.ForeignKeyField(DataSource)
     query_hash = peewee.CharField(max_length=32, index=True)
     query = peewee.TextField()
@@ -437,8 +438,9 @@ class QueryResult(BaseModel):
         return query.first()
 
     @classmethod
-    def store_result(cls, data_source_id, query_hash, query, data, run_time, retrieved_at):
-        query_result = cls.create(query_hash=query_hash,
+    def store_result(cls, org_id, data_source_id, query_hash, query, data, run_time, retrieved_at):
+        query_result = cls.create(org=org_id,
+                                  query_hash=query_hash,
                                   query=query,
                                   runtime=run_time,
                                   data_source=data_source_id,
@@ -894,6 +896,11 @@ class Visualization(ModelTimestampsMixin, BaseModel):
 
         return d
 
+    @classmethod
+    def get_by_id_and_org(cls, visualization_id, org):
+        return cls.select(Visualization, Query).join(Query).where(cls.id == visualization_id,
+                                                                  Query.org == org).get()
+
     def __unicode__(self):
         return u"%s %s" % (self.id, self.type)
 
@@ -931,6 +938,10 @@ class Widget(ModelTimestampsMixin, BaseModel):
     
     def __unicode__(self):
         return u"%s" % self.id
+
+    @classmethod
+    def get_by_id_and_org(cls, widget_id, org):
+        return cls.select(cls, Dashboard).join(Dashboard).where(cls.id == widget_id, Dashboard.org == org).get()
 
     def delete_instance(self, *args, **kwargs):
         layout = json.loads(self.dashboard.layout)

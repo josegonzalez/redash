@@ -78,7 +78,8 @@ query_result_factory = ModelFactory(redash.models.QueryResult,
                                     retrieved_at=utcnow,
                                     query="SELECT 1",
                                     query_hash=gen_query_hash('SELECT 1'),
-                                    data_source=data_source_factory.create)
+                                    data_source=data_source_factory.create,
+                                    org=1)
 
 visualization_factory = ModelFactory(redash.models.Visualization,
                                      type='CHART',
@@ -144,14 +145,17 @@ class Factory(object):
         }
         args.update(kwargs)
 
+        if 'group' in kwargs and 'org' not in kwargs:
+            args['org'] = kwargs['group'].org
+
         data_source = data_source_factory.create(**args)
 
         if 'group' in kwargs:
             permissions = kwargs.pop('permissions', ['create', 'view'])
 
             redash.models.DataSourceGroup.create(group=kwargs['group'],
-                                                  data_source=data_source,
-                                                  permissions=permissions)
+                                                 data_source=data_source,
+                                                 permissions=permissions)
 
         return data_source
 
@@ -174,9 +178,14 @@ class Factory(object):
 
     def create_query_result(self, **kwargs):
         args = {
-            'data_source': self.data_source
+            'data_source': self.data_source,
         }
+
         args.update(kwargs)
+
+        if 'data_source' in args and 'org' not in args:
+            args['org'] = args['data_source'].org_id
+
         return query_result_factory.create(**args)
 
     def create_visualization(self, **kwargs):

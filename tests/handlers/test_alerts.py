@@ -2,6 +2,7 @@ from tests import BaseTestCase
 from tests.factories import org_factory
 from tests.handlers import authenticated_user, json_request
 from redash.wsgi import app
+from redash.models import AlertSubscription
 
 
 class TestAlertResourceGet(BaseTestCase):
@@ -85,3 +86,24 @@ class TestAlertSubscriptionListResourceGet(BaseTestCase):
         with app.test_client() as c, authenticated_user(c, user=self.factory.user):
             rv = json_request(c.get, "/api/alerts/{}/subscriptions".format(alert.id))
             self.assertEqual(rv.status_code, 403)
+
+
+class TestAlertSubscriptionresourceDelete(BaseTestCase):
+    def test_only_subscriber_or_admin_can_unsubscribe(self):
+        alert = self.factory.create_alert()
+        other_user = self.factory.create_user()
+        path = '/api/alerts/{}/subscriptions/{}'.format(alert.id, other_user.id)
+
+        AlertSubscription.create(alert=alert, user=other_user)
+
+        response = self.make_request('delete', path)
+        self.assertEqual(response.status_code, 403)
+
+        response = self.make_request('delete', path, user=self.factory.create_admin())
+        self.assertEqual(response.status_code, 200)
+
+        AlertSubscription.create(alert=alert, user=other_user)
+        response = self.make_request('delete', path, user=other_user)
+        self.assertEqual(response.status_code, 200)
+
+

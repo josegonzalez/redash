@@ -4,8 +4,8 @@ from flask.ext.restful import abort
 from redash import models
 from redash.wsgi import api
 from redash.tasks import record_event
-from redash.permissions import require_permission, require_admin_or_owner, is_admin_or_owner
-from redash.handlers.base import BaseResource, require_fields, get_object_or_404
+from redash.permissions import require_permission
+from redash.handlers.base import BaseResource, get_object_or_404
 
 
 class GroupListResource(BaseResource):
@@ -126,11 +126,12 @@ class GroupDataSourceListResource(BaseResource):
 
     @require_permission('admin')
     def get(self, group_id):
-        # TODO: check group is in current org
+        group = get_object_or_404(models.Group.get_by_id_and_org, group_id, self.current_org)
+
         # TOOD: move to models
         data_sources = models.DataSource.select(models.DataSource, models.DataSourceGroup.view_only)\
             .join(models.DataSourceGroup)\
-            .where(models.DataSourceGroup.group == group_id)
+            .where(models.DataSourceGroup.group == group)
 
         return [ds.to_dict(with_permissions=True) for ds in data_sources]
 

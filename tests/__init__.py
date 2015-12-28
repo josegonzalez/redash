@@ -21,6 +21,7 @@ settings.DATABASE_CONFIG = {
 
 from redash import redis_connection
 import redash.models
+from tests.handlers import make_request
 
 logging.getLogger("metrics").setLevel("ERROR")
 logging.getLogger('peewee').setLevel(logging.INFO)
@@ -35,6 +36,11 @@ class BaseTestCase(TestCase):
         redash.models.db.close_db(None)
         redash.models.create_db(False, True)
         redis_connection.flushdb()
+
+    def make_request(self, method, path, user=None, data=None, is_json=True):
+        if user is None:
+            user = self.factory.user
+        return make_request(method, path, user, data, is_json)
 
     def assertResponseEqual(self, expected, actual):
         for k, v in expected.iteritems():

@@ -9,8 +9,8 @@ from flask.ext.restful import abort
 from redash import models, settings, utils
 from redash.wsgi import api
 from redash.tasks import QueryTask, record_event
-from redash.permissions import require_permission, require_access, not_view_only, has_access
-from redash.handlers.base import BaseResource
+from redash.permissions import require_permission, not_view_only, has_access
+from redash.handlers.base import BaseResource, get_object_or_404
 
 
 class QueryResultListAPI(BaseResource):
@@ -77,12 +77,12 @@ class QueryResultAPI(BaseResource):
     def get(self, query_id=None, query_result_id=None, filetype='json'):
         should_cache = query_result_id is not None
         if query_result_id is None and query_id is not None:
-            query = models.Query.get_by_id(query_id)
+            query = get_object_or_404(models.Query.get_by_id_and_org, query_id, self.current_org)
             if query:
                 query_result_id = query._data['latest_query_data']
 
         if query_result_id:
-            query_result = models.QueryResult.get_by_id(query_result_id)
+            query_result = get_object_or_404(models.QueryResult.get_by_id_and_org, query_result_id, self.current_org)
 
         if query_result:
             if isinstance(self.current_user, models.ApiUser):

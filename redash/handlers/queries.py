@@ -1,6 +1,6 @@
-from flask import request, redirect
+from flask import request
 from flask.ext.restful import abort
-from flask_login import current_user, login_required
+from flask_login import login_required
 import sqlparse
 
 from funcy import distinct, take

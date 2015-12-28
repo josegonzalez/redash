@@ -33,6 +33,7 @@ if __name__ == '__main__':
             migrator.add_column('users', 'org_id', column),
             migrator.add_column('dashboards', 'org_id', column),
             migrator.add_column('queries', 'org_id', column),
+            migrator.add_column('query_results', 'org_id', column),
         )
 
     db.close_db(None)
