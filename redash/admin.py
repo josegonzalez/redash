@@ -9,7 +9,7 @@ from wtforms import fields
 from wtforms.widgets import TextInput
 
 from redash import models
-from redash.permissions import require_permission
+from redash.permissions import require_admin
 
 
 class ArrayListField(fields.Field):
@@ -64,7 +64,7 @@ class BaseModelView(ModelView):
     column_display_pk = True
     model_form_converter = PgModelConverter
 
-    @require_permission('admin')
+    @require_admin()
     def is_accessible(self):
         return True
 

@@ -48,6 +48,14 @@ def require_permission(permission):
     return require_permissions((permission,))
 
 
+def require_admin():
+    return require_permission('admin')
+
+
+def require_super_admin():
+    return require_permission('super_admin')
+
+
 def has_permission_or_owner(permission, object_owner_id):
     return int(object_owner_id) == current_user.id or current_user.has_permission(permission)
 

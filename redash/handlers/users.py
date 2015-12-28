@@ -8,7 +8,7 @@ from redash import models
 from redash.wsgi import api
 from redash.tasks import record_event
 from redash.permissions import require_permission, require_admin_or_owner, is_admin_or_owner, \
-    require_permission_or_owner
+    require_permission_or_owner, require_admin
 from redash.handlers.base import BaseResource, require_fields, get_object_or_404
 
 
@@ -17,7 +17,7 @@ class UserListResource(BaseResource):
     def get(self):
         return [u.to_dict() for u in models.User.all(self.current_org)]
 
-    @require_permission('admin')
+    @require_admin()
     def post(self):
         # TODO: send invite.
         req = request.get_json(force=True)

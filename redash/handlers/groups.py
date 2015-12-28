@@ -4,12 +4,12 @@ from flask.ext.restful import abort
 from redash import models
 from redash.wsgi import api
 from redash.tasks import record_event
-from redash.permissions import require_permission
+from redash.permissions import require_admin
 from redash.handlers.base import BaseResource, get_object_or_404
 
 
 class GroupListResource(BaseResource):
-    @require_permission('admin')
+    @require_admin()
     def post(self):
         name = request.json['name']
         group = models.Group.create(name=name, org=self.current_org)
@@ -34,7 +34,7 @@ class GroupListResource(BaseResource):
 
 
 class GroupResource(BaseResource):
-    @require_permission('admin')
+    @require_admin()
     def post(self, group_id):
         group = models.Group.get_by_id_and_org(group_id, self.current_org)
         group.name = request.json['name']
@@ -60,7 +60,7 @@ class GroupResource(BaseResource):
 
 
 class GroupMemberListResource(BaseResource):
-    @require_permission('admin')
+    @require_admin()
     def post(self, group_id):
         user_id = request.json['user_id']
         user = models.User.get_by_id_and_org(user_id, self.current_org)
@@ -88,7 +88,7 @@ class GroupMemberListResource(BaseResource):
 
 
 class GroupMemberResource(BaseResource):
-    @require_permission('admin')
+    @require_admin()
     def delete(self, group_id, user_id):
         user = models.User.get_by_id_and_org(user_id, self.current_org)
         user.groups.remove(int(group_id))
@@ -105,7 +105,7 @@ class GroupMemberResource(BaseResource):
 
 
 class GroupDataSourceListResource(BaseResource):
-    @require_permission('admin')
+    @require_admin()
     def post(self, group_id):
         data_source_id = request.json['data_source_id']
         data_source = models.DataSource.get_by_id_and_org(data_source_id, self.current_org)
@@ -124,7 +124,7 @@ class GroupDataSourceListResource(BaseResource):
 
         return data_source.to_dict(with_permissions=True)
 
-    @require_permission('admin')
+    @require_admin()
     def get(self, group_id):
         group = get_object_or_404(models.Group.get_by_id_and_org, group_id, self.current_org)
 
@@ -137,7 +137,7 @@ class GroupDataSourceListResource(BaseResource):
 
 
 class GroupDataSourceResource(BaseResource):
-    @require_permission('admin')
+    @require_admin()
     def post(self, group_id, data_source_id):
         data_source = models.DataSource.get_by_id_and_org(data_source_id, self.current_org)
         group = models.Group.get_by_id_and_org(group_id, self.current_org)
@@ -157,7 +157,7 @@ class GroupDataSourceResource(BaseResource):
 
         return data_source.to_dict(with_permissions=True)
 
-    @require_permission('admin')
+    @require_admin()
     def delete(self, group_id, data_source_id):
         data_source = models.DataSource.get_by_id_and_org(data_source_id, self.current_org)
         group = models.Group.get_by_id_and_org(group_id, self.current_org)

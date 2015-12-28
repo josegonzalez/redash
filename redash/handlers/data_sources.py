@@ -6,14 +6,13 @@ from funcy import project
 
 from redash import models
 from redash.wsgi import api
-from redash.permissions import require_permission
+from redash.permissions import require_admin
 from redash.query_runner import query_runners, validate_configuration
 from redash.handlers.base import BaseResource, get_object_or_404
-from redash.settings import parse_boolean
 
 
 class DataSourceTypeListAPI(BaseResource):
-    @require_permission("admin")
+    @require_admin()
     def get(self):
         return [q.to_dict() for q in query_runners.values()]
 
@@ -21,12 +20,12 @@ api.add_resource(DataSourceTypeListAPI, '/api/data_sources/types', endpoint='dat
 
 
 class DataSourceAPI(BaseResource):
-    @require_permission('admin')
+    @require_admin()
     def get(self, data_source_id):
         data_source = models.DataSource.get_by_id_and_org(data_source_id, self.current_org)
         return data_source.to_dict(all=True)
 
-    @require_permission('admin')
+    @require_admin()
     def post(self, data_source_id):
         data_source = models.DataSource.get_by_id_and_org(data_source_id, self.current_org)
         req = request.get_json(True)
@@ -43,7 +42,7 @@ class DataSourceAPI(BaseResource):
 
         return data_source.to_dict(all=True)
 
-    @require_permission('admin')
+    @require_admin()
     def delete(self, data_source_id):
         data_source = models.DataSource.get_by_id_and_org(data_source_id, self.current_org)
         data_source.delete_instance(recursive=True)
@@ -66,7 +65,7 @@ class DataSourceListAPI(BaseResource):
 
         return response
 
-    @require_permission("admin")
+    @require_admin()
     def post(self):
         req = request.get_json(True)
         required_fields = ('options', 'name', 'type')
