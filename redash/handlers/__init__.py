@@ -2,7 +2,7 @@ from flask import jsonify
 from flask_login import login_required
 
 from redash.wsgi import app
-from redash.permissions import require_admin
+from redash.permissions import require_super_admin
 from redash.monitor import get_status
 
 
@@ -13,7 +13,7 @@ def ping():
 
 @app.route('/status.json')
 @login_required
-@require_admin()
+@require_super_admin()
 def status_api():
     status = get_status()
 
