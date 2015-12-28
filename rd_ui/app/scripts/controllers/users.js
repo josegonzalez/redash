@@ -60,15 +60,45 @@
     }
   };
 
-  var GroupDataSourcesCtrl = function($scope, $routeParams, $http, growl, Events, Group, DataSource) {
+  var groupName = function ($location, growl) {
+    return {
+      restrict: 'E',
+      scope: {
+        'group': '='
+      },
+      transclude: true,
+      template:
+        '<h2>'+
+          '<edit-in-place editable="canEdit()" done="saveName" ignore-blanks=\'true\' value="group.name"></edit-in-place>&nbsp;' +
+          '<button class="btn btn-xs btn-danger" ng-if="canEdit()" ng-click="deleteGroup()">Delete this group</button>' +
+        '</h2>',
+      replace: true,
+      controller: ['$scope', function ($scope) {
+        $scope.canEdit = function() {
+          return currentUser.isAdmin && $scope.group.type != 'builtin';
+        };
+
+        $scope.saveName = function() {
+          $scope.group.$save();
+        };
+
+        $scope.deleteGroup = function() {
+          if (confirm("Are you sure you want to delete this group?")) {
+            $scope.group.$delete(function() {
+              $location.path('/groups').replace();
+              growl.addSuccessMessage("Group deleted successfully.");
+            })
+          }
+        }
+      }]
+    }
+  };
+
+  var GroupDataSourcesCtrl = function($scope, $routeParams, $http, $location, growl, Events, Group, DataSource) {
     Events.record(currentUser, "view", "group_data_sources", $scope.groupId);
     $scope.group = Group.get({id: $routeParams.groupId});
     $scope.dataSources = Group.dataSources({id: $routeParams.groupId});
     $scope.newDataSource = {};
-
-    $scope.saveName = function() {
-      $scope.group.$save();
-    };
 
     $scope.findDataSource = function(search) {
       if ($scope.foundDataSources === undefined) {
@@ -106,15 +136,11 @@
     };
   }
 
-  var GroupCtrl = function($scope, $routeParams, $http, growl, Events, Group, User) {
+  var GroupCtrl = function($scope, $routeParams, $http, $location, growl, Events, Group, User) {
     Events.record(currentUser, "view", "group", $scope.groupId);
     $scope.group = Group.get({id: $routeParams.groupId});
     $scope.members = Group.members({id: $routeParams.groupId});
     $scope.newMember = {};
-
-    $scope.saveName = function() {
-      $scope.group.$save();
-    };
 
     $scope.findUser = function(search) {
       if (search == "") {
@@ -302,8 +328,9 @@
 
   angular.module('redash.controllers')
     .controller('GroupsCtrl', ['$scope', '$location', '$modal', 'growl', 'Events', 'Group', GroupsCtrl])
-    .controller('GroupCtrl', ['$scope', '$routeParams', '$http', 'growl', 'Events', 'Group', 'User', GroupCtrl])
-    .controller('GroupDataSourcesCtrl', ['$scope', '$routeParams', '$http', 'growl', 'Events', 'Group', 'DataSource', GroupDataSourcesCtrl])
+    .directive('groupName', ['$location', 'growl', groupName])
+    .controller('GroupCtrl', ['$scope', '$routeParams', '$http', '$location', 'growl', 'Events', 'Group', 'User', GroupCtrl])
+    .controller('GroupDataSourcesCtrl', ['$scope', '$routeParams', '$http', '$location', 'growl', 'Events', 'Group', 'DataSource', GroupDataSourcesCtrl])
     .controller('UsersCtrl', ['$scope', '$location', 'growl', 'Events', 'User', UsersCtrl])
     .controller('UserCtrl', ['$scope', '$routeParams', '$http', '$location', 'growl', 'Events', 'User', UserCtrl])
     .controller('NewUserCtrl', ['$scope', '$location', 'growl', 'Events', 'User', NewUserCtrl])

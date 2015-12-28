@@ -1,5 +1,6 @@
 from tests import BaseTestCase
 from tests.factories import org_factory
+from redash.models import Group, DataSource
 
 
 class TestGroupDataSourceListResource(BaseTestCase):
@@ -11,4 +12,29 @@ class TestGroupDataSourceListResource(BaseTestCase):
         self.assertEqual(response.status_code, 404)
 
 
+class TestGroupDataSourceResourceDelete(BaseTestCase):
+    def test_allowed_only_to_admin(self):
+        group = self.factory.create_group()
 
+        response = self.make_request('delete', '/api/groups/{}'.format(group.id))
+        self.assertEqual(response.status_code, 403)
+
+        response = self.make_request('delete', '/api/groups/{}'.format(group.id), user=self.factory.create_admin())
+        self.assertEqual(response.status_code, 200)
+
+        self.assertRaises(Group.DoesNotExist, Group.get_by_id, group.id)
+
+    def test_cant_delete_builtin_group(self):
+        for group in [self.factory.default_group, self.factory.admin_group]:
+            response = self.make_request('delete', '/api/groups/{}'.format(group.id), user=self.factory.create_admin())
+            self.assertEqual(response.status_code, 400)
+
+    def test_can_delete_group_with_data_sources(self):
+        group = self.factory.create_group()
+        data_source = self.factory.create_data_source(group=group)
+
+        response = self.make_request('delete', '/api/groups/{}'.format(group.id), user=self.factory.create_admin())
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertEqual(data_source, DataSource.get_by_id(data_source.id))

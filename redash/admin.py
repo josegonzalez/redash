@@ -64,7 +64,7 @@ class BaseModelView(ModelView):
     column_display_pk = True
     model_form_converter = PgModelConverter
 
-    @require_super_admin()
+    @require_super_admin
     def is_accessible(self):
         return True
 

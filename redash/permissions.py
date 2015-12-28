@@ -48,12 +48,12 @@ def require_permission(permission):
     return require_permissions((permission,))
 
 
-def require_admin():
-    return require_permission('admin')
+def require_admin(fn):
+    return require_permission('admin')(fn)
 
 
-def require_super_admin():
-    return require_permission('super_admin')
+def require_super_admin(fn):
+    return require_permission('super_admin')(fn)
 
 
 def has_permission_or_owner(permission, object_owner_id):

@@ -13,7 +13,7 @@ def ping():
 
 @app.route('/status.json')
 @login_required
-@require_super_admin()
+@require_super_admin
 def status_api():
     status = get_status()
 

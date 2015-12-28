@@ -174,8 +174,12 @@ class Group(BaseModel, BelongsToOrgMixin):
     DEFAULT_PERMISSIONS = ['create_dashboard', 'create_query', 'edit_dashboard', 'edit_query',
                            'view_query', 'view_source', 'execute_query', 'list_users', 'schedule_query']
 
+    BUILTIN_GROUP = 'builtin'
+    REGULAR_GROUP = 'regular'
+
     id = peewee.PrimaryKeyField()
     org = peewee.ForeignKeyField(Organization, related_name="groups")
+    type = peewee.CharField(default=REGULAR_GROUP)
     name = peewee.CharField(max_length=100)
     permissions = ArrayField(peewee.CharField, default=DEFAULT_PERMISSIONS)
     created_at = DateTimeTZField(default=datetime.datetime.now)
@@ -188,6 +192,7 @@ class Group(BaseModel, BelongsToOrgMixin):
             'id': self.id,
             'name': self.name,
             'permissions': self.permissions,
+            'type': self.type,
             'created_at': self.created_at
         }
 
@@ -989,8 +994,8 @@ all_models = (Organization, Group, DataSource, DataSourceGroup, User, QueryResul
 
 def init_db():
     default_org = Organization.create(name="Default", settings={})
-    admin_group = Group.create(name='admin', permissions=['admin'], org=default_org)
-    default_group = Group.create(name='default', permissions=Group.DEFAULT_PERMISSIONS, org=default_org)
+    admin_group = Group.create(name='admin', permissions=['admin'], org=default_org, type=Group.BUILTIN_GROUP)
+    default_group = Group.create(name='default', permissions=Group.DEFAULT_PERMISSIONS, org=default_org, type=Group.BUILTIN_GROUP)
 
     return default_org, admin_group, default_group
 

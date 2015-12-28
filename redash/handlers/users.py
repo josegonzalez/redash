@@ -17,7 +17,7 @@ class UserListResource(BaseResource):
     def get(self):
         return [u.to_dict() for u in models.User.all(self.current_org)]
 
-    @require_admin()
+    @require_admin
     def post(self):
         # TODO: send invite.
         req = request.get_json(force=True)
